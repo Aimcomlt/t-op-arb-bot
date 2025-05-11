@@ -1,0 +1,1 @@
+// Run this to preload tokenMeta, ABIs, or warm caches before bot starts.

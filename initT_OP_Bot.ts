@@ -1,0 +1,1 @@
+// Entry point: runs pair collector, formatter, tokenMeta consolidator and broadcast.
