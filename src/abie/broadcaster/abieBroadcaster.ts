@@ -1,4 +1,5 @@
 // src/abie/broadcaster/abieBroadcaster.ts
+import { attachCommandRouter } from '../commands/commandRouter';
 
 import WebSocket from 'ws';
 
@@ -32,6 +33,9 @@ export function broadcastABIEEvent(eventType: string, payload: any): void {
  */
 wss.on('connection', (ws) => {
   console.log(`[ABIE] Client connected (${wss.clients.size} total)`);
+
+  // Attach command handling to each connection
+  attachCommandRouter(ws);
 
   ws.on('close', () => {
     console.log(`[ABIE] Client disconnected (${wss.clients.size} remaining)`);
