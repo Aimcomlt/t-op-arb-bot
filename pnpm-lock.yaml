@@ -20,6 +20,9 @@ importers:
 
   backend:
     dependencies:
+      '@t-op-arb-bot/types':
+        specifier: workspace:*
+        version: link:../packages/types
       dotenv:
         specifier: ^17.2.1
         version: 17.2.1
@@ -54,6 +57,9 @@ importers:
 
   frontend:
     dependencies:
+      '@t-op-arb-bot/types':
+        specifier: workspace:*
+        version: link:../packages/types
       react:
         specifier: ^18.3.1
         version: 18.3.1

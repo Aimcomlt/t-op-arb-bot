@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 collectDefaultMetrics({ register });
 
 // Gauge for active websocket clients
-export const wsClientsActive = new Gauge({
+export const wsClientsActiveGauge = new Gauge({
   name: 'ws_clients_active',
   help: 'Number of active WebSocket clients',
 });
@@ -26,7 +26,7 @@ export const dexFetchMs = new Histogram({
 });
 
 // Counter for broadcast messages total
-export const broadcastMsgsTotal = new Counter({
+export const broadcastMsgsTotalCounter = new Counter({
   name: 'broadcast_msgs_total',
   help: 'Total number of messages broadcast to clients',
 });
