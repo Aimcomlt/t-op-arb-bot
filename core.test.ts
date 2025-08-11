@@ -21,16 +21,16 @@ describe('initT_OP_Bot', () => {
     const startBroadcastServer = vi.fn();
     const broadcastState = vi.fn();
 
-    vi.doMock('./src/dex/dexCollector', () => ({ collectPairs }));
-    vi.doMock('./src/core/pairFormatter', () => ({ normalizePairs }));
-    vi.doMock('./src/core/metaConsolidator', () => ({ consolidateTokenMeta }));
-    vi.doMock('./src/ws/broadcaster', () => ({ startBroadcastServer, broadcastState }));
+    vi.doMock('@blazing/core/dex/dexCollector', () => ({ collectPairs }));
+    vi.doMock('@blazing/core/core/pairFormatter', () => ({ normalizePairs }));
+    vi.doMock('@blazing/core/core/metaConsolidator', () => ({ consolidateTokenMeta }));
+    vi.doMock('@blazing/core/ws/broadcaster', () => ({ startBroadcastServer, broadcastState }));
 
     const exitSpy = vi
       .spyOn(process, 'exit')
       .mockImplementation((() => undefined) as any);
 
-    await import('./src/core/initT_OP_Bot');
+    await import('@blazing/core/core/initT_OP_Bot');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(startBroadcastServer).toHaveBeenCalled();
@@ -54,17 +54,17 @@ describe('initT_OP_Bot', () => {
     const collectPairs = vi.fn().mockRejectedValue(new Error('boom'));
     const startBroadcastServer = vi.fn();
 
-    vi.doMock('./src/dex/dexCollector', () => ({ collectPairs }));
-    vi.doMock('./src/core/pairFormatter', () => ({ normalizePairs: vi.fn() }));
-    vi.doMock('./src/core/metaConsolidator', () => ({ consolidateTokenMeta: vi.fn() }));
-    vi.doMock('./src/ws/broadcaster', () => ({ startBroadcastServer, broadcastState: vi.fn() }));
+    vi.doMock('@blazing/core/dex/dexCollector', () => ({ collectPairs }));
+    vi.doMock('@blazing/core/core/pairFormatter', () => ({ normalizePairs: vi.fn() }));
+    vi.doMock('@blazing/core/core/metaConsolidator', () => ({ consolidateTokenMeta: vi.fn() }));
+    vi.doMock('@blazing/core/ws/broadcaster', () => ({ startBroadcastServer, broadcastState: vi.fn() }));
 
     const exitSpy = vi
       .spyOn(process, 'exit')
       .mockImplementation((() => undefined) as any);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    await import('./src/core/initT_OP_Bot');
+    await import('@blazing/core/core/initT_OP_Bot');
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(startBroadcastServer).toHaveBeenCalled();
@@ -107,17 +107,17 @@ describe('postSyncHooks (arb planner)', () => {
     const emitSyncEvent = vi.fn();
     const emitArbOpportunity = vi.fn();
 
-    vi.doMock('./src/tracing/buildSyncTrace', () => ({ buildSyncTrace }));
-    vi.doMock('./src/core/scanDiscrepancy', () => ({ scanDiscrepancy }));
-    vi.doMock('./src/core/strategyBuilder', () => ({ strategyBuilder }));
-    vi.doMock('./src/utils/profitGuard', () => ({ profitGuard }));
-    vi.doMock('./src/hooks/postExecutionHooks', () => ({ postExecutionHooks }));
-    vi.doMock('./src/abie/broadcaster/broadcastHooks', () => ({
+    vi.doMock('@blazing/core/tracing/buildSyncTrace', () => ({ buildSyncTrace }));
+    vi.doMock('@blazing/core/core/scanDiscrepancy', () => ({ scanDiscrepancy }));
+    vi.doMock('@blazing/core/core/strategyBuilder', () => ({ strategyBuilder }));
+    vi.doMock('@blazing/core/utils/profitGuard', () => ({ profitGuard }));
+    vi.doMock('@blazing/core/hooks/postExecutionHooks', () => ({ postExecutionHooks }));
+    vi.doMock('@blazing/core/abie/broadcaster/broadcastHooks', () => ({
       emitSyncEvent,
       emitArbOpportunity
     }));
 
-    const { postSyncHooks } = await import('./src/hooks/postSyncHooks');
+    const { postSyncHooks } = await import('@blazing/core/hooks/postSyncHooks');
     await postSyncHooks(log);
 
     expect(buildSyncTrace).toHaveBeenCalledWith(log);
@@ -152,17 +152,17 @@ describe('postSyncHooks (arb planner)', () => {
     const emitSyncEvent = vi.fn();
     const emitArbOpportunity = vi.fn();
 
-    vi.doMock('./src/tracing/buildSyncTrace', () => ({ buildSyncTrace }));
-    vi.doMock('./src/core/scanDiscrepancy', () => ({ scanDiscrepancy }));
-    vi.doMock('./src/core/strategyBuilder', () => ({ strategyBuilder }));
-    vi.doMock('./src/utils/profitGuard', () => ({ profitGuard }));
-    vi.doMock('./src/hooks/postExecutionHooks', () => ({ postExecutionHooks }));
-    vi.doMock('./src/abie/broadcaster/broadcastHooks', () => ({
+    vi.doMock('@blazing/core/tracing/buildSyncTrace', () => ({ buildSyncTrace }));
+    vi.doMock('@blazing/core/core/scanDiscrepancy', () => ({ scanDiscrepancy }));
+    vi.doMock('@blazing/core/core/strategyBuilder', () => ({ strategyBuilder }));
+    vi.doMock('@blazing/core/utils/profitGuard', () => ({ profitGuard }));
+    vi.doMock('@blazing/core/hooks/postExecutionHooks', () => ({ postExecutionHooks }));
+    vi.doMock('@blazing/core/abie/broadcaster/broadcastHooks', () => ({
       emitSyncEvent,
       emitArbOpportunity
     }));
 
-    const { postSyncHooks } = await import('./src/hooks/postSyncHooks');
+    const { postSyncHooks } = await import('@blazing/core/hooks/postSyncHooks');
     await postSyncHooks(log);
 
     expect(emitArbOpportunity).not.toHaveBeenCalled();

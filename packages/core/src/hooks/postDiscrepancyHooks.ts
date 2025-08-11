@@ -18,10 +18,10 @@ export async function postDiscrepancyHooks(trace: SyncTrace, spread: SpreadCompu
     emitArbOpportunity({
       tokenIn: spread.tokenIn,
       tokenOut: spread.tokenOut,
-      spread: spread.spread,
+      spread: spread.spread.toString(),
       buyOn: spread.buyOn,
       sellOn: spread.sellOn,
-      estimatedProfit: spread.estimatedProfit
+      estimatedProfit: spread.estimatedProfit.toString()
     });
 
     // 2. Optional: Log to analytics / metrics

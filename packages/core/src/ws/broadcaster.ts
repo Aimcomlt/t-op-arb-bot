@@ -5,12 +5,12 @@
  * Useful for live dashboards, debug viewers, or real-time routing UIs.
  */
 
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { TokenMeta } from '../core/metaConsolidator';
 
 const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 8081;
 
-let wss: WebSocket.Server | null = null;
+let wss: WebSocketServer | null = null;
 
 /**
  * Starts the WebSocket server if not already started
@@ -18,11 +18,11 @@ let wss: WebSocket.Server | null = null;
 export function startBroadcastServer() {
   if (wss) return; // Avoid duplicate server
 
-  wss = new WebSocket.Server({ port: PORT }, () => {
+  wss = new WebSocketServer({ port: PORT }, () => {
     console.log(`[ws] WebSocket server started on ws://localhost:${PORT}`);
   });
 
-  wss.on('connection', (socket) => {
+  wss.on('connection', (socket: WebSocket) => {
     console.log('[ws] New client connected');
   });
 }

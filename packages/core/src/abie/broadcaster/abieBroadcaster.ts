@@ -1,14 +1,14 @@
 // src/abie/broadcaster/abieBroadcaster.ts
 import { attachCommandRouter } from '../commands/commandRouter';
 
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 /**
  * Creates and manages the ABIE WebSocket server for broadcasting real-time
  * arbitrage events (e.g., syncs, profit opportunities, execution results).
  */
 const PORT = 7777;
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocketServer({ port: PORT });
 
 console.log(`[ABIE] WebSocket broadcaster initialized on port ${PORT}`);
 
@@ -31,7 +31,7 @@ export function broadcastABIEEvent(eventType: string, payload: any): void {
 /**
  * Optionally, track connections or log activity:
  */
-wss.on('connection', (ws) => {
+wss.on('connection', (ws: WebSocket) => {
   console.log(`[ABIE] Client connected (${wss.clients.size} total)`);
 
   // Attach command handling to each connection

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@t-op-arb-bot/types": "workspace:*",
+    "@blazing/core": "workspace:*",
     "dotenv": "^17.2.1",
     "ethers": "^6.15.0",
     "pino": "^9.8.0",

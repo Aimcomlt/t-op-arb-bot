@@ -11,8 +11,17 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "lib": ["ES2020"],
-    "types": ["node"]
+    "types": ["node"],
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@blazing/core/*": ["../packages/core/src/*"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"],
+  "references": [
+    { "path": "../packages/core" }
+  ]
 }
 
