@@ -10,11 +10,15 @@ const envSchema = z.object({
   HTTP_PORT: z.coerce.number().int().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   METRICS_PORT: z.coerce.number().int().default(9108),
-    // NEW: polite collection limits
-    MAX_PAIRS: z.coerce.number().int().positive().default(50),          // total per DEX
-    COLLECT_CONCURRENCY: z.coerce.number().int().positive().default(2), // calls in flight
-    CHUNK_DELAY_MS: z.coerce.number().int().nonnegative().default(500), // pause between chunks
-    START_INDEX: z.coerce.number().int().nonnegative().default(0),      // optional offset
+  WETH_ADDRESS: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/)
+    .default('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'),
+  // NEW: polite collection limits
+  MAX_PAIRS: z.coerce.number().int().positive().default(50), // total per DEX
+  COLLECT_CONCURRENCY: z.coerce.number().int().positive().default(2), // calls in flight
+  CHUNK_DELAY_MS: z.coerce.number().int().nonnegative().default(500), // pause between chunks
+  START_INDEX: z.coerce.number().int().nonnegative().default(0), // optional offset
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
