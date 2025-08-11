@@ -1,42 +1,32 @@
-import { WebSocketServer, WebSocket } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
+
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
-import {
-  wsClientsActiveGauge,
-  broadcastMsgsTotalCounter,
-} from '../monitoring/metrics';
-import {
-  TokenMetaUpdate,
-  tokenMetaUpdateZ,
-} from '@t-op-arb-bot/types';
+import { wsClientsActiveGauge, broadcastMsgsTotalCounter } from '../monitoring/metrics';
+import { TokenMetaUpdate, tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 
-/**
- * An in-memory snapshot keyed by pairSymbol.
- * On each update we upsert into this map. On client connect,
- * we replay the snapshot (one `tokenMeta.update` per pair).
- */
+// Derive types from runtime values (robust across TS/ESM configs)
+type WSClient = InstanceType<typeof WebSocket>;
+type WSServer = InstanceType<typeof WebSocketServer>;
+
+// State
 const snapshot = new Map<string, TokenMetaUpdate['payload']>();
+const clients = new Set<WSClient>();
+let wss: WSServer | null = null;
 
-/** Connected clients */
-const clients = new Set<WebSocket>();
-
-let wss: WebSocketServer | null = null;
-
-/**
- * Start the WebSocket server (idempotent).
- * Returns a small control surface used by the engine.
- */
 export function startWsServer(port = env.WS_PORT) {
-  if (wss) return controlSurface; // already started
+  if (wss) return controlSurface;
 
   wss = new WebSocketServer({ port });
   logger.info({ port }, 'WS server listening');
+
   wss.on('connection', handleConnection);
+  wss.on('error', (err: unknown) => logger.error({ err }, 'WS server error'));
 
   return controlSurface;
 }
 
-function handleConnection(ws: WebSocket) {
+function handleConnection(ws: WSClient) {
   clients.add(ws);
   wsClientsActiveGauge.inc();
 
@@ -45,45 +35,24 @@ function handleConnection(ws: WebSocket) {
     wsClientsActiveGauge.dec();
   });
 
-  // Send full snapshot to the new client (one validated message per pair)
+  // Replay snapshot on connect
   for (const payload of snapshot.values()) {
-    const update: TokenMetaUpdate = {
-      type: 'tokenMeta.update',
-      at: new Date().toISOString(),
-      payload,
-    };
+    const update: TokenMetaUpdate = { type: 'tokenMeta.update', at: new Date().toISOString(), payload };
     safeSend(ws, update);
   }
 }
 
-/**
- * Upsert a single pair payload into the snapshot by pairSymbol.
- * This does not broadcast by itself—call `broadcastUpdate` to fan out.
- */
 export function upsertSnapshot(payload: TokenMetaUpdate['payload']) {
   snapshot.set(payload.pairSymbol, payload);
 }
 
-/**
- * Broadcast a single validated TokenMetaUpdate to all clients.
- */
 export function broadcastUpdate(payload: TokenMetaUpdate['payload']) {
-  const update: TokenMetaUpdate = {
-    type: 'tokenMeta.update',
-    at: new Date().toISOString(),
-    payload,
-  };
+  const update: TokenMetaUpdate = { type: 'tokenMeta.update', at: new Date().toISOString(), payload };
 
-  // Validate against canonical Zod schema before sending
+  // Validate against canonical schema
   const parsed = tokenMetaUpdateZ.safeParse(update);
   if (!parsed.success) {
-    logger.error(
-      {
-        issues: parsed.error.issues,
-        payload,
-      },
-      'Refusing to broadcast invalid TokenMetaUpdate'
-    );
+    logger.error({ issues: parsed.error.issues, payload }, 'Refusing to broadcast invalid TokenMetaUpdate');
     return;
   }
 
@@ -91,8 +60,7 @@ export function broadcastUpdate(payload: TokenMetaUpdate['payload']) {
   let sent = 0;
 
   for (const ws of clients) {
-    // Skip if socket not open
-    if (ws.readyState !== ws.OPEN) continue;
+    if (ws.readyState !== WebSocket.OPEN) continue; // static OPEN from value import
     try {
       ws.send(json);
       sent++;
@@ -100,22 +68,13 @@ export function broadcastUpdate(payload: TokenMetaUpdate['payload']) {
       logger.warn({ err }, 'WS send failed');
     }
   }
-
-  if (sent > 0) {
-    broadcastMsgsTotalCounter.inc(sent);
-  }
+  if (sent > 0) broadcastMsgsTotalCounter.inc(sent);
 }
 
-/**
- * Helper to validate + send to a single socket (used for snapshot replay).
- */
-function safeSend(ws: WebSocket, update: TokenMetaUpdate) {
+function safeSend(ws: WSClient, update: TokenMetaUpdate) {
   const parsed = tokenMetaUpdateZ.safeParse(update);
   if (!parsed.success) {
-    logger.error(
-      { issues: parsed.error.issues, update },
-      'Snapshot message failed validation'
-    );
+    logger.error({ issues: parsed.error.issues, update }, 'Snapshot message failed validation');
     return;
   }
   try {
@@ -126,15 +85,10 @@ function safeSend(ws: WebSocket, update: TokenMetaUpdate) {
   }
 }
 
-/**
- * Optional lifecycle helpers
- */
 export function stopWsServer() {
   if (!wss) return;
   for (const ws of clients) {
-    try {
-      ws.close();
-    } catch {}
+    try { ws.close(); } catch {}
   }
   clients.clear();
   wsClientsActiveGauge.set(0);
@@ -143,9 +97,6 @@ export function stopWsServer() {
   wss = null;
 }
 
-/**
- * A tiny control surface used by the engine/bootstrap code.
- */
 export const controlSurface = {
   start: startWsServer,
   stop: stopWsServer,

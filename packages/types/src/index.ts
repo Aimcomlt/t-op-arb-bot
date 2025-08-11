@@ -13,13 +13,15 @@ export const tokenMetaPayloadZ = z.object({
   reserves: reservesZ,
   price: z.string(),
   liquidityUSD: z.string().optional(),
-  spread: z.string().optional(),
+  spread: z.string().optional()
 });
 
 export const tokenMetaUpdateZ = z.object({
   type: z.literal('tokenMeta.update'),
   at: z.string(),
-  payload: tokenMetaPayloadZ,
+  payload: tokenMetaPayloadZ
 });
 
 export type TokenMetaUpdate = z.infer<typeof tokenMetaUpdateZ>;
+export type TokenMetaPayload = z.infer<typeof tokenMetaPayloadZ>;
+

@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+
 const envSchema = z.object({
   RPC_HTTP_URL: z.string().url(),
   RPC_WSS_URL: z.string().url(),
@@ -9,6 +10,11 @@ const envSchema = z.object({
   HTTP_PORT: z.coerce.number().int().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   METRICS_PORT: z.coerce.number().int().default(9108),
+    // NEW: polite collection limits
+    MAX_PAIRS: z.coerce.number().int().positive().default(50),          // total per DEX
+    COLLECT_CONCURRENCY: z.coerce.number().int().positive().default(2), // calls in flight
+    CHUNK_DELAY_MS: z.coerce.number().int().nonnegative().default(500), // pause between chunks
+    START_INDEX: z.coerce.number().int().nonnegative().default(0),      // optional offset
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

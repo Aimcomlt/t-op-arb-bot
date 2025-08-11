@@ -1,90 +1,121 @@
 import { ethers } from 'ethers';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
-import type { PairList, PairDescriptor, Token } from './types';
+import type { PairList, Token } from './types';
+import { sleep, mapLimit } from '../utils/async';
+import { fetchTokenMeta } from './tokenMeta';
 
-// If you already have constants, import them; otherwise add here:
+// Uniswap V2 factory
 const UNI_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f' as const;
 
-// Point to existing ABI cache
+// ABIs
 import { UNISWAP_FACTORY_ABI } from '../abi-cache/FACTORY/uniswapV2Factory';
 import { UNISWAP_PAIR_ABI } from '../abi-cache/PAIR/uniswapV2Pair';
 
-type RawPair = {
-  lpAddress: `0x${string}`;
-  token0: Token;
-  token1: Token;
-};
+// Throttle knobs (env-backed)
+const MAX_PAIRS: number = (env as any).MAX_PAIRS ?? 50;
+const COLLECT_CONCURRENCY: number = (env as any).COLLECT_CONCURRENCY ?? 2;
+const CHUNK_DELAY_MS: number = (env as any).CHUNK_DELAY_MS ?? 500;
+const START_INDEX: number = (env as any).START_INDEX ?? 0;
+
+// Internal shapes
+type PairTokenAddrs = { lpAddress: `0x${string}`; t0: `0x${string}`; t1: `0x${string}` };
+type Enriched = { lpAddress: `0x${string}`; token0: Token; token1: Token };
+
+// Retry helper (429 / transient CALL_EXCEPTION)
+async function withRetries<T>(fn: () => Promise<T>, label: string, maxAttempts = 5): Promise<T> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const isRate = e?.info?.error?.code === 429;
+      const isCallEx = e?.code === 'CALL_EXCEPTION' || e?.code === 'BAD_DATA';
+      if (!isRate && !isCallEx) throw e;
+      if (attempt === maxAttempts) throw e;
+      const delay = 200 * attempt;
+      logger.warn({ attempt, delay, label, reason: isRate ? '429' : e?.code }, '[UNI] retrying');
+      await sleep(delay);
+    }
+  }
+  // TS appeasement
+  throw new Error(`withRetries exhausted: ${label}`);
+}
+
+// Type guard to filter nulls from enrichment
+function isEnriched(x: Enriched | null): x is Enriched {
+  return x !== null;
+}
 
 export async function collectUniswapPairs(
   provider = new ethers.JsonRpcProvider(env.RPC_HTTP_URL)
 ): Promise<PairList> {
   const factory = new ethers.Contract(UNI_FACTORY_ADDRESS, UNISWAP_FACTORY_ABI, provider);
 
-  const allPairsLength: bigint = await factory.allPairsLength();
-  const total = Number(allPairsLength);
-  logger.info({ total }, '[UNI] allPairsLength');
+  const totalPairs = Number(
+    await withRetries(() => factory.allPairsLength(), 'factory.allPairsLength')
+  );
 
-  const batchSize = 1000; // keep memory sane
-  const pairs: PairList = [];
+  const start = Math.max(0, START_INDEX);
+  const max = Math.min(MAX_PAIRS, Math.max(0, totalPairs - start));
+  const endExclusive = start + max;
 
-  for (let offset = 0; offset < total; offset += batchSize) {
-    const end = Math.min(offset + batchSize, total);
-    const idxs = Array.from({ length: end - offset }, (_, i) => i + offset);
-
-    // Fetch LP addresses in batch
-    const lpPromises = idxs.map((i) => factory.allPairs(i));
-    const lpAddrs = (await Promise.all(lpPromises)) as string[];
-
-    // Fetch token0/token1 in batch
-    const rawPairs = await Promise.all(
-      lpAddrs.map(async (addr) => {
-        const pair = new ethers.Contract(addr, UNISWAP_PAIR_ABI, provider);
-        const [t0, t1] = await Promise.all([pair.token0(), pair.token1()]);
-        return { lpAddress: addr as `0x${string}`, token0: t0 as `0x${string}`, token1: t1 as `0x${string}` };
-      })
-    );
-
-    // Resolve token metadata (symbol/decimals) — cache results to avoid repeats
-    const tokenCache = new Map<string, Token>();
-    async function toToken(address: `0x${string}`): Promise<Token> {
-      const key = address.toLowerCase();
-      const cached = tokenCache.get(key);
-      if (cached) return cached;
-      const erc20 = new ethers.Contract(
-        address,
-        [
-          'function symbol() view returns (string)',
-          'function decimals() view returns (uint8)',
-        ],
-        provider
-      );
-      const [symbol, decimals] = await Promise.all([erc20.symbol(), erc20.decimals()]);
-      const t: Token = { address, symbol, decimals };
-      tokenCache.set(key, t);
-      return t;
-    }
-
-    const enriched: RawPair[] = await Promise.all(
-      rawPairs.map(async (p) => ({
-        lpAddress: p.lpAddress,
-        token0: await toToken(p.token0),
-        token1: await toToken(p.token1),
-      }))
-    );
-
-    enriched.forEach((p) => {
-      const d: PairDescriptor = {
-        dex: 'uniswap',
-        lpAddress: p.lpAddress,
-        token0: p.token0,
-        token1: p.token1,
-      };
-      pairs.push(d);
-    });
-
-    logger.info({ chunk: `${offset}-${end}`, count: pairs.length }, '[UNI] collected chunk');
+  logger.info({ totalPairs, start, endExclusive, max, cc: COLLECT_CONCURRENCY }, '[UNI] planning collection');
+  if (max === 0) {
+    logger.warn('[UNI] max=0; nothing to collect');
+    return [];
   }
 
+  const idxs = Array.from({ length: max }, (_, k) => start + k);
+
+  // 1) LP addresses (throttled)
+  const lpAddrs = (await mapLimit(idxs, COLLECT_CONCURRENCY, async (i) =>
+    withRetries(() => factory.allPairs(i), `factory.allPairs(${i})`)
+  )) as string[];
+
+  // 2) token0/token1 addresses (throttled)
+  const pairsTokenAddrs = await mapLimit<string, PairTokenAddrs>(
+    lpAddrs,
+    COLLECT_CONCURRENCY,
+    async (addr) => {
+      const pair = new ethers.Contract(addr, UNISWAP_PAIR_ABI, provider);
+      const [t0Addr, t1Addr] = await withRetries(
+        () => Promise.all([pair.token0(), pair.token1()]),
+        `pair.token0/1(${addr})`
+      );
+      return { lpAddress: addr as `0x${string}`, t0: t0Addr as `0x${string}`, t1: t1Addr as `0x${string}` };
+    }
+  );
+
+  // 3) Enrich with token metadata (robust; never throws fatally)
+  const enriched = await mapLimit<PairTokenAddrs, Enriched | null>(
+    pairsTokenAddrs,
+    COLLECT_CONCURRENCY,
+    async (p) => {
+      try {
+        const [token0, token1] = await Promise.all([
+          fetchTokenMeta(p.t0, provider),
+          fetchTokenMeta(p.t1, provider),
+        ]);
+        return { lpAddress: p.lpAddress, token0, token1 };
+      } catch (err) {
+        logger.warn({ lp: p.lpAddress, err: String(err) }, '[UNI] skip LP (meta failed)');
+        return null;
+      }
+    }
+  );
+
+  if (CHUNK_DELAY_MS > 0) await sleep(CHUNK_DELAY_MS);
+
+  // 4) Build PairList, dropping failed enrichments
+  const pairs: PairList = enriched
+    .filter(isEnriched)
+    .map((p) => ({
+      dex: 'uniswap' as const,
+      lpAddress: p.lpAddress,
+      token0: p.token0,
+      token1: p.token1,
+    }));
+
+  logger.info({ selected: pairs.length, start, endExclusive }, '[UNI] collected (throttled)');
   return pairs;
 }
