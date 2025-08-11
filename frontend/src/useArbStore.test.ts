@@ -17,11 +17,11 @@ describe('useArbStore', () => {
     useArbStore.getState().reset();
   });
 
-  it('ingest adds pair and updates order', () => {
-    useArbStore.getState().ingest(samplePair);
+  it('addPair appends to pairs array', () => {
+    useArbStore.getState().addPair(samplePair);
     const state = useArbStore.getState();
-    expect(state.rowsByKey['ETH/USDC:uniswap']).toBeDefined();
-    expect(state.order).toEqual(['ETH/USDC:uniswap']);
+    expect(state.pairs).toHaveLength(1);
+    expect(state.pairs[0]).toEqual(samplePair);
   });
 
   it('setStatus updates status', () => {

@@ -11,10 +11,12 @@ interface ArbState {
   status: Status;
   rowsByKey: Record<string, Row>;      // key = `${pairSymbol}:${dex}`
   order: string[];                      // stable order of keys (optional, for fast tables)
+  pairs: Pair[];                        // raw stream of pair updates
 
   // actions
   setStatus: (status: Status) => void;
   ingest: (pair: Pair) => void;         // upsert (dedupe)
+  addPair: (pair: Pair) => void;        // append to pairs list
   ingestMany: (pairs: Pair[]) => void;  // batch upsert (snapshot bursts)
   reset: () => void;
 }
@@ -27,6 +29,7 @@ export const useArbStore = create<ArbState>((set, get) => ({
   status: 'disconnected',
   rowsByKey: {},
   order: [],
+  pairs: [],
 
   setStatus: (status) => set({ status }),
 
@@ -57,6 +60,9 @@ export const useArbStore = create<ArbState>((set, get) => ({
       const order = prev ? state.order : [...state.order, key];
       return { rowsByKey, order };
     }),
+
+  addPair: (pair) =>
+    set((state) => ({ pairs: [...state.pairs, pair] })),
 
   ingestMany: (pairs) =>
     set((state) => {
@@ -96,5 +102,5 @@ export const useArbStore = create<ArbState>((set, get) => ({
       return { rowsByKey, order };
     }),
 
-  reset: () => set({ rowsByKey: {}, order: [], status: 'disconnected' }),
+  reset: () => set({ rowsByKey: {}, order: [], pairs: [], status: 'disconnected' }),
 }));
