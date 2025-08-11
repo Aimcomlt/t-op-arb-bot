@@ -1,6 +1,11 @@
 import http from 'node:http';
-import { Counter, Gauge, Histogram, collectDefaultMetrics, register } from 'prom-client';
-import { env } from '../config/env';
+import {
+  Counter,
+  Gauge,
+  Histogram,
+  collectDefaultMetrics,
+  register,
+} from 'prom-client';
 import { logger } from '../utils/logger';
 
 // Collect default metrics provided by prom-client
@@ -38,23 +43,26 @@ export const errorsTotal = new Counter({
   labelNames: ['stage'],
 });
 
-// HTTP server exposing /metrics endpoint
-const server = http.createServer(async (req, res) => {
-  if (req.url === '/metrics') {
-    try {
-      const metrics = await register.metrics();
-      res.writeHead(200, { 'Content-Type': register.contentType });
-      res.end(metrics);
-    } catch (err) {
-      res.writeHead(500);
-      res.end('Error collecting metrics');
+export function startMetricsServer(port: number) {
+  const server = http.createServer(async (req, res) => {
+    if (req.url === '/metrics') {
+      try {
+        const metrics = await register.metrics();
+        res.writeHead(200, { 'Content-Type': register.contentType });
+        res.end(metrics);
+      } catch (err) {
+        res.writeHead(500);
+        res.end('Error collecting metrics');
+      }
+    } else {
+      res.writeHead(404);
+      res.end('Not Found');
     }
-  } else {
-    res.writeHead(404);
-    res.end('Not Found');
-  }
-});
+  });
 
-server.listen(env.METRICS_PORT, () => {
-  logger.info(`Metrics server listening on port ${env.METRICS_PORT}`);
-});
+  server.listen(port, () => {
+    logger.info(`Metrics server listening on port ${port}`);
+  });
+
+  return server;
+}
