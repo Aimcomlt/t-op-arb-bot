@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { TokenMetaUpdate } from '../../packages/types/src';
 
-type Pair = TokenMetaUpdate['payload'];
+type Pair = TokenMetaUpdate['payload'] & { at: string };
 
 type Status = 'disconnected' | 'connected';
 

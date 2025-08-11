@@ -18,7 +18,7 @@ export function useWebSocket() {
       try {
         const data = JSON.parse(event.data);
         const parsed = tokenMetaUpdateSchema.parse(data);
-        addPair(parsed.payload);
+        addPair({ ...parsed.payload, at: parsed.at });
       } catch (err) {
         console.error('Invalid message', err);
       }
