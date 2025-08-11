@@ -20,6 +20,9 @@ importers:
 
   backend:
     dependencies:
+      '@blazing/core':
+        specifier: workspace:*
+        version: link:../packages/core
       '@t-op-arb-bot/types':
         specifier: workspace:*
         version: link:../packages/types
@@ -100,6 +103,40 @@ importers:
       vitest:
         specifier: ^2.1.3
         version: 2.1.9(@types/node@24.2.1)(jsdom@24.1.3)
+
+  packages/core:
+    dependencies:
+      dotenv:
+        specifier: ^17.2.1
+        version: 17.2.1
+      ethers:
+        specifier: ^6.15.0
+        version: 6.15.0
+      pino:
+        specifier: ^9.8.0
+        version: 9.8.0
+      prom-client:
+        specifier: ^15.1.3
+        version: 15.1.3
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3
+      zod:
+        specifier: ^4.0.17
+        version: 4.0.17
+    devDependencies:
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.18.1
+      eslint:
+        specifier: ^9.33.0
+        version: 9.33.0
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/node@24.2.1)(jsdom@24.1.3)(tsx@4.20.3)
 
   packages/types:
     dependencies:
@@ -801,6 +838,9 @@ packages:
 
   '@types/react@18.3.23':
     resolution: {integrity: sha512-/LDXMQh55EzZQ0uVAZmKKhfENivEvWz6E+EYzh+/MCjMhNsotd+ZHhBGIjFDTi6+fz0OhQQQLbTgdQIxxCsC0w==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitejs/plugin-react@5.0.0':
     resolution: {integrity: sha512-Jx9JfsTa05bYkS9xo0hkofp2dCmp1blrKjw9JONs5BTHOvJCgLbaPSuZLGSVJW6u2qe0tc4eevY0+gSNNi0YCw==}
@@ -2571,6 +2611,10 @@ snapshots:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.1.3
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 24.2.1
 
   '@vitejs/plugin-react@5.0.0(vite@7.1.1(@types/node@24.2.1)(tsx@4.20.3))':
     dependencies:

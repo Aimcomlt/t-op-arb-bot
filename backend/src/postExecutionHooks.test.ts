@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../src/utils/dbLogger', () => ({ logToDatabase: vi.fn() }));
-vi.mock('../../src/abie/broadcaster/broadcastHooks', () => ({
+vi.mock('@blazing/core/utils/dbLogger', () => ({ logToDatabase: vi.fn() }));
+vi.mock('@blazing/core/abie/broadcaster/broadcastHooks', () => ({
   emitExecutionResult: vi.fn(),
   emitRevertAlert: vi.fn(),
   emitSystemLog: vi.fn()
 }));
-vi.mock('../../src/config/arbitrageConfig', () => ({ updateSlippageTolerance: vi.fn() }));
-vi.mock('../../src/abie/simulation/simulateUnknownTx', () => ({ simulateUnknownTx: vi.fn() }));
-vi.mock('../../src/utils/formatTraceForLogs', () => ({ formatTraceForLogs: vi.fn().mockReturnValue('formatted trace') }));
+vi.mock('@blazing/core/config/arbitrageConfig', () => ({ updateSlippageTolerance: vi.fn() }));
+vi.mock('@blazing/core/abie/simulation/simulateUnknownTx', () => ({ simulateUnknownTx: vi.fn() }));
+vi.mock('@blazing/core/utils/formatTraceForLogs', () => ({ formatTraceForLogs: vi.fn().mockReturnValue('formatted trace') }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -17,12 +17,12 @@ beforeEach(() => {
 
 describe('postExecutionHooks', () => {
   it('handles successful execution and logs trace', async () => {
-    const { postExecutionHooks } = await import('../../src/hooks/postExecutionHooks');
-    const { logToDatabase } = await import('../../src/utils/dbLogger');
-    const hooks = await import('../../src/abie/broadcaster/broadcastHooks');
-    const { updateSlippageTolerance } = await import('../../src/config/arbitrageConfig');
-    const { simulateUnknownTx } = await import('../../src/abie/simulation/simulateUnknownTx');
-    const { formatTraceForLogs } = await import('../../src/utils/formatTraceForLogs');
+    const { postExecutionHooks } = await import('@blazing/core/hooks/postExecutionHooks');
+    const { logToDatabase } = await import('@blazing/core/utils/dbLogger');
+    const hooks = await import('@blazing/core/abie/broadcaster/broadcastHooks');
+    const { updateSlippageTolerance } = await import('@blazing/core/config/arbitrageConfig');
+    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
+    const { formatTraceForLogs } = await import('@blazing/core/utils/formatTraceForLogs');
 
     (simulateUnknownTx as any).mockResolvedValue({ trace: true });
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -49,10 +49,10 @@ describe('postExecutionHooks', () => {
   });
 
   it('handles reverted execution and emits alert', async () => {
-    const { postExecutionHooks } = await import('../../src/hooks/postExecutionHooks');
-    const hooks = await import('../../src/abie/broadcaster/broadcastHooks');
-    const { updateSlippageTolerance } = await import('../../src/config/arbitrageConfig');
-    const { simulateUnknownTx } = await import('../../src/abie/simulation/simulateUnknownTx');
+    const { postExecutionHooks } = await import('@blazing/core/hooks/postExecutionHooks');
+    const hooks = await import('@blazing/core/abie/broadcaster/broadcastHooks');
+    const { updateSlippageTolerance } = await import('@blazing/core/config/arbitrageConfig');
+    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
 
     (simulateUnknownTx as any).mockResolvedValue(null);
 

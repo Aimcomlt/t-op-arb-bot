@@ -5,7 +5,7 @@
  * Mirrors Uniswap V2 logic but points to Sushi's factory + ABI.
  */
 
-import { ethers } from 'ethers';
+import { JsonRpcProvider, Contract } from 'ethers';
 import { SUSHISWAP_FACTORY_ABI } from '../../abi-cache/FACTORY/sushiswapV2Factory';
 import { SUSHISWAP_PAIR_ABI } from '../../abi-cache/PAIR/sushiswapV2Pair';
 import { RawLP } from '../dexCollector';
@@ -13,10 +13,10 @@ import { RawLP } from '../dexCollector';
 const SUSHISWAP_FACTORY_ADDRESS = '0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac'; // SushiSwap V2 Factory
 const RPC_URL = process.env.INFURA_MAINNET || '';
 
-const provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+const provider = new JsonRpcProvider(RPC_URL);
 
 export async function fetchSushiPairs(limit = 200): Promise<RawLP[]> {
-  const factory = new ethers.Contract(
+  const factory = new Contract(
     SUSHISWAP_FACTORY_ADDRESS,
     SUSHISWAP_FACTORY_ABI,
     provider
@@ -30,7 +30,7 @@ export async function fetchSushiPairs(limit = 200): Promise<RawLP[]> {
   for (let i = 0; i < max; i++) {
     try {
       const pairAddress = await factory.allPairs(i);
-      const pair = new ethers.Contract(pairAddress, SUSHISWAP_PAIR_ABI, provider);
+      const pair = new Contract(pairAddress, SUSHISWAP_PAIR_ABI, provider);
 
       const [token0, token1] = await Promise.all([
         pair.token0(),

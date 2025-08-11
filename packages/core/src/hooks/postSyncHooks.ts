@@ -8,6 +8,8 @@ import { postExecutionHooks } from './postExecutionHooks';
 
 import { emitSyncEvent, emitArbOpportunity } from '../abie/broadcaster/broadcastHooks';
 import { SyncEventLog } from '../types/SyncTrace';
+import { ArbStrategy } from '../types/strategyTypes';
+import { ExecutionResult } from '../monitorExecution';
 
 /**
  * Invoked after an LP Sync event is received.
@@ -49,10 +51,10 @@ export async function postSyncHooks(log: SyncEventLog) {
     if (!isViable) return;
 
     // 6. Build executable strategy from spread + trace
-    const strategy = strategyBuilder(syncTrace, spreadResult);
+    const strategy = strategyBuilder(syncTrace, spreadResult) as unknown as ArbStrategy;
 
     // 7. Simulate + execute trade (next step: hook into execution engine)
-    const executionResult = await strategy.execute();
+    const executionResult = (await strategy.execute()) as ExecutionResult;
 
     // 8. Send results to post-trade handling
     await postExecutionHooks({ strategy, result: executionResult });

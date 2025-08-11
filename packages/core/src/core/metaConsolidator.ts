@@ -5,7 +5,7 @@
  * Optionally fetches symbol/decimals via onchain fallback.
  */
 
-import { ethers } from 'ethers';
+import { JsonRpcProvider, Contract } from 'ethers';
 import { CanonicalPair } from './pairFormatter';
 
 const ERC20_ABI = [
@@ -13,7 +13,7 @@ const ERC20_ABI = [
   { name: 'symbol', type: 'function', inputs: [], outputs: [{ type: 'string' }], stateMutability: 'view' },
 ] as const;
 
-const provider = new ethers.providers.JsonRpcProvider(process.env.INFURA_MAINNET || '');
+const provider = new JsonRpcProvider(process.env.INFURA_MAINNET || '');
 
 export interface TokenMeta {
   address: string;
@@ -29,7 +29,7 @@ export async function consolidateTokenMeta(pairs: CanonicalPair[]): Promise<Reco
       if (tokenMap[address]) continue;
 
       try {
-        const token = new ethers.Contract(address, ERC20_ABI, provider);
+        const token = new Contract(address, ERC20_ABI, provider);
         const [symbol, decimals] = await Promise.all([
           token.symbol(),
           token.decimals()

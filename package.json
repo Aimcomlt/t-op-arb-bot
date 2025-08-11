@@ -5,7 +5,8 @@
   "workspaces": [
     "backend",
     "frontend",
-    "packages/types"
+    "packages/types",
+    "packages/core"
   ],
   "scripts": {
     "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
