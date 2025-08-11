@@ -1,8 +1,10 @@
-// backend/src/bootstrap/pairs.ts
 import { logger } from '../utils/logger';
+import { collectUniswapPairs } from '../dex/uniswapV2';
+import { collectSushiPairs } from '../dex/sushiswapV2';
+import { matchUniswapSushi } from '../dex/matcher';
 
 export type MatchedLP = {
-  pairSymbol: string; // e.g., "WETH/USDC"
+  pairSymbol: string;
   uniswapLP: `0x${string}`;
   sushiswapLP: `0x${string}`;
   token0: { address: `0x${string}`; symbol: string; decimals: number };
@@ -10,18 +12,16 @@ export type MatchedLP = {
 };
 
 export async function bootstrapMatchedLPs(): Promise<MatchedLP[]> {
-  // TODO: Replace with real collectors:
-  //  - load UniswapV2 pairs (WETH/USDC, …)
-  //  - load SushiSwapV2 pairs
-  //  - match by canonical token ordering (address asc) or by symbol map
-  //  - return only pairs present on BOTH DEXes
+  logger.info('Bootstrapping DEX pairs…');
+  const [uniPairs, sushiPairs] = await Promise.all([
+    collectUniswapPairs(),
+    collectSushiPairs(),
+  ]);
 
-  // Example stub to keep the pipeline runnable:
-  const stub: MatchedLP[] = [];
-  if (stub.length === 0) {
-    logger.warn(
-      'bootstrapMatchedLPs produced 0 pairs (stub). Wire real DEX collectors here.'
-    );
-  }
-  return stub;
+  logger.info({ uni: uniPairs.length, sushi: sushiPairs.length }, 'DEX pairs collected');
+
+  const matched = matchUniswapSushi(uniPairs, sushiPairs);
+  logger.info({ matched: matched.length }, 'Cross-DEX pairs matched');
+
+  return matched;
 }
