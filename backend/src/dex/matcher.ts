@@ -1,11 +1,26 @@
 import type { PairDescriptor, Token } from './types';
 import { env } from '../config/env';
+import { readFileSync } from 'fs';
 
 const WETH: Token = {
   address: env.WETH_ADDRESS as `0x${string}`,
   symbol: 'WETH',
   decimals: 18,
 };
+
+const allowSet = new Set(env.QUOTE_ALLOWLIST.map((a) => a.toLowerCase()));
+const denySet = new Set(env.QUOTE_DENYLIST.map((a) => a.toLowerCase()));
+let seedSet = new Set<string>();
+if (env.LP_SEED_JSON) {
+  try {
+    const data = JSON.parse(readFileSync(env.LP_SEED_JSON, 'utf-8')) as string[];
+    if (Array.isArray(data)) {
+      seedSet = new Set(data.map((a) => a.toLowerCase()));
+    }
+  } catch {
+    /* ignore seed load errors */
+  }
+}
 
 // Given a PairDescriptor, return the non-WETH token address (quote token)
 function quoteTokenAddress(p: PairDescriptor): `0x${string}` {
@@ -41,6 +56,9 @@ export function matchUniswapSushi(
 
   const matched: Array<ReturnType<typeof normalizeOut>> = [];
   for (const [key, sushiPair] of sushiMap) {
+    if (denySet.has(key)) continue;
+    if (allowSet.size > 0 && !allowSet.has(key)) continue;
+    if (seedSet.size > 0 && !seedSet.has(key)) continue;
     const uniPair = uniMap.get(key);
     if (uniPair) matched.push(normalizeOut(uniPair, sushiPair));
   }

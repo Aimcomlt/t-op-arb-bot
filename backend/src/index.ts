@@ -34,8 +34,14 @@ async function main() {
   // 4) Start realtime Sync listener → normalize → WS snapshot + broadcast
   logger.info('Starting SyncListener…');
   await startSyncListener(matchedLPs, (update: SyncUpdate) => {
-    // Map SyncUpdate → TokenMetaUpdate['payload']
-    // NOTE: `syncListener` should already return normalized price/spread as strings.
+    const spread = Number(update.spreadBps ?? '0');
+    const liq = Number(update.liquidityUSD ?? '0');
+    const r0 = Number(update.reserves.r0);
+    const r1 = Number(update.reserves.r1);
+    if (spread < env.MIN_SPREAD_BPS) return;
+    if (liq < env.MIN_LIQ_USD) return;
+    if (r0 < env.MIN_RESERVE || r1 < env.MIN_RESERVE) return;
+
     const payload = {
       pairSymbol: update.pairSymbol,
       dex: update.dex, // 'uniswap' | 'sushiswap'
@@ -50,12 +56,9 @@ async function main() {
       spread: update.spreadBps,
     } as const;
 
-    // keep snapshot current for new WS clients
     upsertSnapshot(payload);
-    // broadcast to all connected clients
     broadcastUpdate(payload);
 
-    // update health
     if (update.blockNumber > latestBlockObserved) {
       latestBlockObserved = update.blockNumber;
     }

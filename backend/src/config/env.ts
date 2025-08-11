@@ -14,6 +14,28 @@ const envSchema = z.object({
     .string()
     .regex(/^0x[a-fA-F0-9]{40}$/)
     .default('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'),
+  MIN_SPREAD_BPS: z.coerce.number().nonnegative().default(0),
+  MIN_LIQ_USD: z.coerce.number().nonnegative().default(0),
+  MIN_RESERVE: z.coerce.number().nonnegative().default(0),
+  QUOTE_ALLOWLIST: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    ),
+  QUOTE_DENYLIST: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    ),
+  LP_SEED_JSON: z.string().default(''),
   // NEW: polite collection limits
   MAX_PAIRS: z.coerce.number().int().positive().default(50), // total per DEX
   COLLECT_CONCURRENCY: z.coerce.number().int().positive().default(2), // calls in flight
