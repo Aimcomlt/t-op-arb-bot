@@ -1,6 +1,6 @@
 // src/utils/parseTrace.ts
 
-import { TraceResult } from "@/types/traceTypes";
+import type { TraceResult } from '@t-op-arb-bot/types';
 import { DecodedCallData } from "@/types/decodedTypes";
 
 interface ViemTraceCall {

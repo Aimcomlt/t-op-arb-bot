@@ -1,6 +1,6 @@
 // src/utils/formatTraceForLogs.ts
 
-import { TraceResult } from "@/types/traceTypes";
+import type { TraceResult } from '@t-op-arb-bot/types';
 
 export function formatTraceForLogs(trace: TraceResult, indent = 0): string {
   const prefix = " ".repeat(indent * 2);

@@ -15,7 +15,9 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@blazing/core/*": ["../packages/core/src/*"]
+      "@backend/*": ["src/*"],
+      "@blazing/core/*": ["../packages/core/src/*"],
+      "@types/*": ["../packages/types/src/*"]
     }
   },
   "include": ["src/**/*.ts"],
