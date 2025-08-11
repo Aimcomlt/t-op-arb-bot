@@ -1,15 +1,15 @@
 // src/hooks/postSyncHooks.ts
 
-import { buildSyncTrace } from '../tracing/buildSyncTrace';
-import { scanDiscrepancy } from '../core/scanDiscrepancy';
-import { strategyBuilder } from '../core/strategyBuilder';
-import { profitGuard } from '../utils/profitGuard';
-import { postExecutionHooks } from './postExecutionHooks';
+import { buildSyncTrace } from '../tracing/buildSyncTrace.js';
+import { scanDiscrepancy } from '../core/scanDiscrepancy.js';
+import { strategyBuilder } from '../core/strategyBuilder.js';
+import { profitGuard } from '../utils/profitGuard.js';
+import { postExecutionHooks } from './postExecutionHooks.js';
 
-import { emitSyncEvent, emitArbOpportunity } from '../abie/broadcaster/broadcastHooks';
-import { SyncEventLog } from '../types/SyncTrace';
-import { ArbStrategy } from '../types/strategyTypes';
-import { ExecutionResult } from '../monitorExecution';
+import { emitSyncEvent, emitArbOpportunity } from '../abie/broadcaster/broadcastHooks.js';
+import { SyncEventLog } from '../types/SyncTrace.js';
+import { ArbStrategy } from '../types/strategyTypes.js';
+import { ExecutionResult } from '../monitorExecution.js';
 
 /**
  * Invoked after an LP Sync event is received.

@@ -1,4 +1,4 @@
-import { ExecutionResult } from '../monitorExecution';
+import { ExecutionResult } from '../monitorExecution.js';
 
 export interface ArbStrategy {
   pairSymbol: string;

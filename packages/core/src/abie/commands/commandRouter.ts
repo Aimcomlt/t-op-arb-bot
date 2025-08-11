@@ -1,7 +1,7 @@
 // src/abie/commands/commandRouter.ts
 
 import { WebSocket, WebSocketServer } from 'ws';
-import { handleCommand } from './commandHandlers';
+import { handleCommand } from './commandHandlers.js';
 
 /**
  * Attach command-handling behavior to a WebSocket connection.

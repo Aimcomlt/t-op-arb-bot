@@ -15,8 +15,8 @@ export interface RawLP {
   dex: string;
 }
 
-import { fetchUniPairs } from './loaders/uniswap';
-import { fetchSushiPairs } from './loaders/sushiswap';
+import { fetchUniPairs } from './loaders/uniswap.js';
+import { fetchSushiPairs } from './loaders/sushiswap.js';
 // Add other DEX loaders here
 
 /**

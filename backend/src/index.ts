@@ -1,18 +1,18 @@
 // backend/src/index.ts
 import 'dotenv/config';
-import { env } from './config/env';
-import { logger } from './utils/logger';
+import { env } from './config/env.js';
+import { logger } from './utils/logger.js';
 
-import { startHttpServer, setHealthProbe } from './server/http';
-import { startMetricsServer } from './monitoring/metrics';
+import { startHttpServer, setHealthProbe } from './server/http.js';
+import { startMetricsServer } from './monitoring/metrics.js';
 import {
   startWsServer,
   upsertSnapshot,
   broadcastUpdate,
-} from './server/wsServer';
+} from './server/wsServer.js';
 
-import { bootstrapMatchedLPs } from './bootstrap/pairs';
-import { startSyncListener, type SyncUpdate } from './core/syncListener';
+import { bootstrapMatchedLPs } from './bootstrap/pairs.js';
+import { startSyncListener, type SyncUpdate } from './core/syncListener.js';
 
 async function main() {
   logger.info({ env: { chainId: env.CHAIN_ID } }, 'Boot start');

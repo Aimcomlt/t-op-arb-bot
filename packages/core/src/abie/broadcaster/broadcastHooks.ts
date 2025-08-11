@@ -1,7 +1,7 @@
 // src/abie/broadcaster/broadcastHooks.ts
 
-import { broadcastABIEEvent } from './abieBroadcaster';
-import { ABIE_EVENT_TYPES, ABIEEventPayloads } from './eventTypes';
+import { broadcastABIEEvent } from './abieBroadcaster.js';
+import { ABIE_EVENT_TYPES, ABIEEventPayloads } from './eventTypes.js';
 
 /**
  * Helper functions to emit standardized ABIE event broadcasts.

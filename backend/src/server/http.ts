@@ -1,6 +1,6 @@
 import http from 'node:http';
-import { env } from '../config/env';
-import { logger } from '../utils/logger';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 
 const commit = process.env.COMMIT ?? 'unknown';
 const builtAt = process.env.BUILT_AT ?? new Date().toISOString();

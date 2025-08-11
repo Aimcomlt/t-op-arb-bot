@@ -1,8 +1,8 @@
 import WebSocket, { WebSocketServer } from 'ws';
 
-import { env } from '../config/env';
-import { logger } from '../utils/logger';
-import { wsClientsActiveGauge, broadcastMsgsTotalCounter } from '../monitoring/metrics';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
+import { wsClientsActiveGauge, broadcastMsgsTotalCounter } from '../monitoring/metrics.js';
 import { TokenMetaUpdate, tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 
 // Derive types from runtime values (robust across TS/ESM configs)

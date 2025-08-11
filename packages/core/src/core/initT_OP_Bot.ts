@@ -6,10 +6,10 @@
  * → emits over WebSocket for consumers (frontends or strategy loop).
  */
 
-import { collectPairs } from '../dex/dexCollector';
-import { normalizePairs } from './pairFormatter';
-import { consolidateTokenMeta } from './metaConsolidator';
-import { startBroadcastServer, broadcastState } from '../ws/broadcaster';
+import { collectPairs } from '../dex/dexCollector.js';
+import { normalizePairs } from './pairFormatter.js';
+import { consolidateTokenMeta } from './metaConsolidator.js';
+import { startBroadcastServer, broadcastState } from '../ws/broadcaster.js';
 
 async function initT_OP_Bot() {
   console.log('[init] Booting T-OP-Arb-Bot backend...');

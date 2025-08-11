@@ -6,7 +6,7 @@
  */
 
 import { WebSocket, WebSocketServer } from 'ws';
-import { TokenMeta } from '../core/metaConsolidator';
+import { TokenMeta } from '../core/metaConsolidator.js';
 
 const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 8081;
 

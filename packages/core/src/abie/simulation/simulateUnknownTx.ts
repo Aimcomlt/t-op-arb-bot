@@ -1,11 +1,11 @@
 // src/abie/simulation/simulateUnknownTx.ts
 
-import { viemClient } from "../../clients/viemClient";
-import { decodeSelector } from "../../utils/decodeSelector";
-import { decodeRawArgsHex } from "../../utils/decodeRawArgsHex";
-import { fetchAbiSignature } from "../../utils/fetchAbiSignature";
+import { viemClient } from "../../clients/viemClient.js";
+import { decodeSelector } from "../../utils/decodeSelector.js";
+import { decodeRawArgsHex } from "../../utils/decodeRawArgsHex.js";
+import { fetchAbiSignature } from "../../utils/fetchAbiSignature.js";
 import type { TraceResult } from '@t-op-arb-bot/types';
-import { parseTrace } from "../../utils/traceParsers";
+import { parseTrace } from "../../utils/traceParsers.js";
 
 interface SimulationInput {
   txHash: string;

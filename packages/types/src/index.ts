@@ -25,5 +25,5 @@ export const tokenMetaUpdateZ = z.object({
 export type TokenMetaUpdate = z.infer<typeof tokenMetaUpdateZ>;
 export type TokenMetaPayload = z.infer<typeof tokenMetaPayloadZ>;
 
-export * from './traceTypes';
+export * from './traceTypes.js';
 

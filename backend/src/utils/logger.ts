@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 /**
  * Pino logger instance configured with application log level.

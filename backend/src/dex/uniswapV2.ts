@@ -1,17 +1,17 @@
 import { ethers } from 'ethers';
-import { env } from '../config/env';
-import { logger } from '../utils/logger';
-import type { PairList, Token } from './types';
-import { sleep, mapLimit } from '../utils/async';
-import { fetchTokenMeta } from './tokenMeta';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
+import type { PairList, Token } from './types.js';
+import { sleep, mapLimit } from '../utils/async.js';
+import { fetchTokenMeta } from './tokenMeta.js';
 import { readFileSync } from 'fs';
 
 // Uniswap V2 factory
 const UNI_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f' as const;
 
 // ABIs
-import { UNISWAP_FACTORY_ABI } from '../abi-cache/FACTORY/uniswapV2Factory';
-import { UNISWAP_PAIR_ABI } from '../abi-cache/PAIR/uniswapV2Pair';
+import { UNISWAP_FACTORY_ABI } from '../abi-cache/FACTORY/uniswapV2Factory.js';
+import { UNISWAP_PAIR_ABI } from '../abi-cache/PAIR/uniswapV2Pair.js';
 
 // Throttle knobs (env-backed)
 const MAX_PAIRS: number = (env as any).MAX_PAIRS ?? 50;
