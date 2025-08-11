@@ -1,7 +1,22 @@
-import type { PairDescriptor } from './types';
-import { canonicalTokenKey } from './types';
+import type { PairDescriptor, Token } from './types';
+import { env } from '../config/env';
 
-// Returns only pairs that exist on BOTH DEXes with the same token ordering (by address).
+const WETH: Token = {
+  address: env.WETH_ADDRESS as `0x${string}`,
+  symbol: 'WETH',
+  decimals: 18,
+};
+
+// Given a PairDescriptor, return the non-WETH token address (quote token)
+function quoteTokenAddress(p: PairDescriptor): `0x${string}` {
+  const weth = env.WETH_ADDRESS.toLowerCase();
+  if (p.token0.address.toLowerCase() === weth) return p.token1.address;
+  if (p.token1.address.toLowerCase() === weth) return p.token0.address;
+  throw new Error('pair missing WETH');
+}
+
+// Returns only WETH pairs that exist on BOTH DEXes. Matching is done by the
+// non-WETH (quote) token address.
 export function matchUniswapSushi(
   uni: PairDescriptor[],
   sushi: PairDescriptor[]
@@ -12,40 +27,37 @@ export function matchUniswapSushi(
   token0: { address: `0x${string}`; symbol: string; decimals: number };
   token1: { address: `0x${string}`; symbol: string; decimals: number };
 }> {
-  const map = new Map<string, { uni?: PairDescriptor; sushi?: PairDescriptor }>();
+  const uniMap = new Map<string, PairDescriptor>();
+  const sushiMap = new Map<string, PairDescriptor>();
 
   for (const p of uni) {
-    const key = canonicalTokenKey(p.token0, p.token1);
-    const cur = map.get(key) ?? {};
-    cur.uni = p;
-    map.set(key, cur);
+    const key = quoteTokenAddress(p).toLowerCase();
+    uniMap.set(key, p);
   }
   for (const p of sushi) {
-    const key = canonicalTokenKey(p.token0, p.token1);
-    const cur = map.get(key) ?? {};
-    cur.sushi = p;
-    map.set(key, cur);
+    const key = quoteTokenAddress(p).toLowerCase();
+    sushiMap.set(key, p);
   }
 
   const matched: Array<ReturnType<typeof normalizeOut>> = [];
-  for (const [, v] of map) {
-    if (v.uni && v.sushi) {
-      matched.push(
-        normalizeOut(v.uni, v.sushi)
-      );
-    }
+  for (const [key, sushiPair] of sushiMap) {
+    const uniPair = uniMap.get(key);
+    if (uniPair) matched.push(normalizeOut(uniPair, sushiPair));
   }
   return matched;
 }
 
 function normalizeOut(uni: PairDescriptor, sushi: PairDescriptor) {
-  // Use symbol order from token addresses (stable key) to build a consistent label
-  const pairSymbol = `${uni.token0.symbol}/${uni.token1.symbol}`;
+  const quoteToken =
+    uni.token0.address.toLowerCase() === env.WETH_ADDRESS.toLowerCase()
+      ? uni.token1
+      : uni.token0;
+  const pairSymbol = `${quoteToken.symbol}/WETH`;
   return {
     pairSymbol,
     uniswapLP: uni.lpAddress,
     sushiswapLP: sushi.lpAddress,
-    token0: uni.token0,
-    token1: uni.token1,
+    token0: quoteToken,
+    token1: WETH,
   } as const;
 }
