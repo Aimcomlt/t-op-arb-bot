@@ -6,6 +6,7 @@ const envSchema = z.object({
   RPC_WSS_URL: z.string().url(),
   CHAIN_ID: z.coerce.number().int().positive(),
   WS_PORT: z.coerce.number().int().default(8080),
+  HTTP_PORT: z.coerce.number().int().default(3000),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   METRICS_PORT: z.coerce.number().int().default(9108),
 });
