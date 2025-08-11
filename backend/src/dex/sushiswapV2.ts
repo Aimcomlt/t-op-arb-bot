@@ -20,6 +20,12 @@ const START_INDEX: number = (env as any).START_INDEX ?? 0;
 type PairTokenAddrs = { lpAddress: `0x${string}`; t0: `0x${string}`; t1: `0x${string}` };
 type Enriched = { lpAddress: `0x${string}`; token0: Token; token1: Token };
 
+const WETH: Token = {
+  address: env.WETH_ADDRESS as `0x${string}`,
+  symbol: 'WETH',
+  decimals: 18,
+};
+
 // Retry helper with gentle backoff for 429 / transient errors
 async function withRetries<T>(fn: () => Promise<T>, label: string, maxAttempts = 5): Promise<T> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -38,7 +44,10 @@ async function withRetries<T>(fn: () => Promise<T>, label: string, maxAttempts =
   throw new Error(`withRetries exhausted: ${label}`);
 }
 
-// Type guard to drop nulls from enrichment
+// Type guard helpers
+function hasWeth(x: PairTokenAddrs | null): x is PairTokenAddrs {
+  return x !== null;
+}
 function isEnriched(x: Enriched | null): x is Enriched {
   return x !== null;
 }
@@ -69,8 +78,8 @@ export async function collectSushiPairs(
     withRetries(() => factory.allPairs(i), `factory.allPairs(${i})`)
   )) as string[];
 
-  // 2) token0/token1 addresses (throttled + retried)
-  const pairsTokenAddrs = await mapLimit<string, PairTokenAddrs>(
+  // 2) token0/token1 addresses (throttled + retried, WETH-filtered)
+  const pairsTokenAddrsRaw = await mapLimit<string, PairTokenAddrs | null>(
     lpAddrs,
     COLLECT_CONCURRENCY,
     async (addr) => {
@@ -79,20 +88,26 @@ export async function collectSushiPairs(
         () => Promise.all([pair.token0(), pair.token1()]),
         `pair.token0/1(${addr})`
       );
+      const t0IsWeth = t0Addr.toLowerCase() === env.WETH_ADDRESS.toLowerCase();
+      const t1IsWeth = t1Addr.toLowerCase() === env.WETH_ADDRESS.toLowerCase();
+      if (!t0IsWeth && !t1IsWeth) return null;
       return { lpAddress: addr as `0x${string}`, t0: t0Addr as `0x${string}`, t1: t1Addr as `0x${string}` };
     }
   );
 
-  // 3) Enrich with robust token metadata (never kills the process)
+  const pairsTokenAddrs = pairsTokenAddrsRaw.filter(hasWeth);
+
+  // 3) Enrich with robust token metadata (only non-WETH lookups)
   const enriched = await mapLimit<PairTokenAddrs, Enriched | null>(
     pairsTokenAddrs,
     COLLECT_CONCURRENCY,
     async (p) => {
       try {
-        const [token0, token1] = await Promise.all([
-          fetchTokenMeta(p.t0, provider),
-          fetchTokenMeta(p.t1, provider),
-        ]);
+        const t0IsWeth = p.t0.toLowerCase() === env.WETH_ADDRESS.toLowerCase();
+        const t1IsWeth = p.t1.toLowerCase() === env.WETH_ADDRESS.toLowerCase();
+        const token0P = t0IsWeth ? Promise.resolve(WETH) : fetchTokenMeta(p.t0, provider);
+        const token1P = t1IsWeth ? Promise.resolve(WETH) : fetchTokenMeta(p.t1, provider);
+        const [token0, token1] = await Promise.all([token0P, token1P]);
         return { lpAddress: p.lpAddress, token0, token1 };
       } catch (err) {
         logger.warn({ lp: p.lpAddress, err: String(err) }, '[SUSHI] skip LP (meta failed)');
