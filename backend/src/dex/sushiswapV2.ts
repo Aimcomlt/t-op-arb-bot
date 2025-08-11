@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 import type { PairList, Token } from './types';
 import { sleep, mapLimit } from '../utils/async';
 import { fetchTokenMeta } from './tokenMeta';
+import { readFileSync } from 'fs';
 
 import { SUSHISWAP_FACTORY_ABI } from '../abi-cache/FACTORY/sushiswapV2Factory';
 import { SUSHISWAP_PAIR_ABI } from '../abi-cache/PAIR/sushiswapV2Pair';
@@ -25,6 +26,21 @@ const WETH: Token = {
   symbol: 'WETH',
   decimals: 18,
 };
+
+// Filter sets
+const allowSet = new Set(env.QUOTE_ALLOWLIST.map((a) => a.toLowerCase()));
+const denySet = new Set(env.QUOTE_DENYLIST.map((a) => a.toLowerCase()));
+let seedSet = new Set<string>();
+if (env.LP_SEED_JSON) {
+  try {
+    const data = JSON.parse(readFileSync(env.LP_SEED_JSON, 'utf-8')) as string[];
+    if (Array.isArray(data)) {
+      seedSet = new Set(data.map((a) => a.toLowerCase()));
+    }
+  } catch (err) {
+    logger.warn({ err }, '[SUSHI] failed to read LP_SEED_JSON');
+  }
+}
 
 // Retry helper with gentle backoff for 429 / transient errors
 async function withRetries<T>(fn: () => Promise<T>, label: string, maxAttempts = 5): Promise<T> {
@@ -91,6 +107,11 @@ export async function collectSushiPairs(
       const t0IsWeth = t0Addr.toLowerCase() === env.WETH_ADDRESS.toLowerCase();
       const t1IsWeth = t1Addr.toLowerCase() === env.WETH_ADDRESS.toLowerCase();
       if (!t0IsWeth && !t1IsWeth) return null;
+      const quoteAddr = t0IsWeth ? t1Addr : t0Addr;
+      const quoteLower = quoteAddr.toLowerCase();
+      if (denySet.has(quoteLower)) return null;
+      if (allowSet.size > 0 && !allowSet.has(quoteLower)) return null;
+      if (seedSet.size > 0 && !seedSet.has(quoteLower)) return null;
       return { lpAddress: addr as `0x${string}`, t0: t0Addr as `0x${string}`, t1: t1Addr as `0x${string}` };
     }
   );
