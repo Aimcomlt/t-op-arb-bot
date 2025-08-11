@@ -24,6 +24,18 @@ describe('useArbStore', () => {
     expect(state.pairs[0]).toEqual(samplePair);
   });
 
+  it('ingest upserts rowsByKey without duplicating order', () => {
+    const ingest =
+      useArbStore.getState().ingest ?? useArbStore.getState().addPair;
+    ingest(samplePair);
+    ingest({ ...samplePair, price: '101' });
+    const state = useArbStore.getState();
+    const key = `${samplePair.pairSymbol}:${samplePair.dex}`;
+    expect(Object.keys(state.rowsByKey)).toEqual([key]);
+    expect(state.rowsByKey[key].price).toBe('101');
+    expect(state.order).toEqual([key]);
+  });
+
   it('setStatus updates status', () => {
     useArbStore.getState().setStatus('connected');
     expect(useArbStore.getState().status).toBe('connected');

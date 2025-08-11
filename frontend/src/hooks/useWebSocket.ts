@@ -3,7 +3,7 @@ import { tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 import { useArbStore } from '../useArbStore';
 
 export function useWebSocket() {
-  const addPair = useArbStore((s) => s.addPair);
+  const addPair = useArbStore((s) => s.addPair ?? s.ingest);
   const setStatus = useArbStore((s) => s.setStatus);
 
   const wsRef = useRef<WebSocket | null>(null);
