@@ -1,0 +1,15 @@
+{
+  "name": "@t-op-arb-bot/types",
+  "version": "1.0.0",
+  "private": true,
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "echo \"lint types\"",
+    "test": "echo \"test types\"",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
