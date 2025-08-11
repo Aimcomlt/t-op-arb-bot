@@ -38,9 +38,43 @@ async function main() {
     const liq = Number(update.liquidityUSD ?? '0');
     const r0 = Number(update.reserves.r0);
     const r1 = Number(update.reserves.r1);
-    if (spread < env.MIN_SPREAD_BPS) return;
-    if (liq < env.MIN_LIQ_USD) return;
-    if (r0 < env.MIN_RESERVE || r1 < env.MIN_RESERVE) return;
+
+    if (spread < env.MIN_SPREAD_BPS) {
+      logger.debug(
+        {
+          pair: update.pairSymbol,
+          dex: update.dex,
+          spreadBps: spread,
+          threshold: env.MIN_SPREAD_BPS,
+        },
+        'Filtered update: spread below minimum'
+      );
+      return;
+    }
+    if (liq < env.MIN_LIQ_USD) {
+      logger.debug(
+        {
+          pair: update.pairSymbol,
+          dex: update.dex,
+          liquidityUSD: liq,
+          threshold: env.MIN_LIQ_USD,
+        },
+        'Filtered update: liquidity below minimum'
+      );
+      return;
+    }
+    if (r0 < env.MIN_RESERVE || r1 < env.MIN_RESERVE) {
+      logger.debug(
+        {
+          pair: update.pairSymbol,
+          dex: update.dex,
+          reserves: { r0, r1 },
+          threshold: env.MIN_RESERVE,
+        },
+        'Filtered update: reserve below minimum'
+      );
+      return;
+    }
 
     const payload = {
       pairSymbol: update.pairSymbol,
