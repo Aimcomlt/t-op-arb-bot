@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useArbStore } from '../useArbStore';
+import shallow from 'zustand/shallow';
 
 interface Row {
   pair: string;
@@ -11,11 +12,14 @@ interface Row {
 }
 
 export default function LivePairsTable() {
-  const { pairs, status } = useArbStore((s) => ({ pairs: s.pairs, status: s.status }));
+  const { pairs, status } = useArbStore(
+    (s) => ({ pairs: s.pairs, status: s.status }),
+    shallow,
+  );
   const [minLiquidity, setMinLiquidity] = useState(0);
   const [minSpreadBps, setMinSpreadBps] = useState(0);
-
   const rows = useMemo<Row[]>(() => {
+    if (!Array.isArray(pairs)) return [];
     const map = new Map<string, Row>();
     for (const p of pairs) {
       const existing = map.get(p.pairSymbol) ?? { pair: p.pairSymbol };
@@ -27,21 +31,21 @@ export default function LivePairsTable() {
       existing.lastUpdate = p.at;
       map.set(p.pairSymbol, existing);
     }
-    return Array.from(map.values()).map((r) => {
-      if (r.uniswapPrice != null && r.sushiswapPrice != null) {
-        r.spreadBps =
-          ((r.uniswapPrice - r.sushiswapPrice) /
-            ((r.uniswapPrice + r.sushiswapPrice) / 2)) * 10000;
-      }
-      return r;
-    });
-  }, [pairs]);
-
-  const filtered = rows.filter(
-    (r) =>
-      (r.liquidityUSD ?? 0) >= minLiquidity &&
-      (r.spreadBps ?? -Infinity) >= minSpreadBps,
-  );
+    return Array.from(map.values())
+      .map((r) => {
+        if (r.uniswapPrice != null && r.sushiswapPrice != null) {
+          r.spreadBps =
+            ((r.uniswapPrice - r.sushiswapPrice) /
+              ((r.uniswapPrice + r.sushiswapPrice) / 2)) * 10000;
+        }
+        return r;
+      })
+      .filter(
+        (r) =>
+          (r.liquidityUSD ?? 0) >= minLiquidity &&
+          (r.spreadBps ?? -Infinity) >= minSpreadBps,
+      );
+  }, [pairs, minLiquidity, minSpreadBps]);
 
   const format = (n?: number) => (n != null ? n.toFixed(2) : '-');
 
@@ -91,7 +95,7 @@ export default function LivePairsTable() {
           </tr>
         </thead>
         <tbody>
-          {filtered.map((r) => (
+          {rows.map((r) => (
             <tr key={r.pair}>
               <td>{r.pair}</td>
               <td>{format(r.uniswapPrice)}</td>
