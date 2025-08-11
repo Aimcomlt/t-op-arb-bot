@@ -1,7 +1,7 @@
-import { logger } from '../utils/logger';
-import { collectUniswapPairs } from '../dex/uniswapV2';
-import { collectSushiPairs } from '../dex/sushiswapV2';
-import { matchUniswapSushi } from '../dex/matcher';
+import { logger } from '../utils/logger.js';
+import { collectUniswapPairs } from '../dex/uniswapV2.js';
+import { collectSushiPairs } from '../dex/sushiswapV2.js';
+import { matchUniswapSushi } from '../dex/matcher.js';
 
 export type MatchedLP = {
   pairSymbol: string;

@@ -1,13 +1,13 @@
 import { ethers } from 'ethers';
-import { env } from '../config/env';
-import { logger } from '../utils/logger';
-import type { PairList, Token } from './types';
-import { sleep, mapLimit } from '../utils/async';
-import { fetchTokenMeta } from './tokenMeta';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
+import type { PairList, Token } from './types.js';
+import { sleep, mapLimit } from '../utils/async.js';
+import { fetchTokenMeta } from './tokenMeta.js';
 import { readFileSync } from 'fs';
 
-import { SUSHISWAP_FACTORY_ABI } from '../abi-cache/FACTORY/sushiswapV2Factory';
-import { SUSHISWAP_PAIR_ABI } from '../abi-cache/PAIR/sushiswapV2Pair';
+import { SUSHISWAP_FACTORY_ABI } from '../abi-cache/FACTORY/sushiswapV2Factory.js';
+import { SUSHISWAP_PAIR_ABI } from '../abi-cache/PAIR/sushiswapV2Pair.js';
 
 // Mainnet Sushiswap V2 factory address:
 const SUSHI_FACTORY_ADDRESS = '0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac' as const;

@@ -1,18 +1,18 @@
 // src/hooks/postExecutionHooks.ts
 
-import { ExecutionResult } from "../monitorExecution";
-import { ArbStrategy } from "../types/strategyTypes";
+import { ExecutionResult } from "../monitorExecution.js";
+import { ArbStrategy } from "../types/strategyTypes.js";
 
 import {
   emitExecutionResult,
   emitRevertAlert,
   emitSystemLog
-} from "../abie/broadcaster/broadcastHooks";
+} from "../abie/broadcaster/broadcastHooks.js";
 
-import { updateSlippageTolerance } from "../config/arbitrageConfig";
-import { logToDatabase } from "../utils/dbLogger";
-import { simulateUnknownTx } from "../abie/simulation/simulateUnknownTx";
-import { formatTraceForLogs } from "../utils/formatTraceForLogs";
+import { updateSlippageTolerance } from "../config/arbitrageConfig.js";
+import { logToDatabase } from "../utils/dbLogger.js";
+import { simulateUnknownTx } from "../abie/simulation/simulateUnknownTx.js";
+import { formatTraceForLogs } from "../utils/formatTraceForLogs.js";
 
 /**
  * Executes post-trade logic after a strategy has been confirmed

@@ -1,8 +1,8 @@
 // src/hooks/postDiscrepancyHooks.ts
 
-import { SpreadComputationResult } from '../types/arbitrageTypes';
-import { SyncTrace } from '../types/SyncTrace';
-import { emitArbOpportunity, emitSystemLog } from '../abie/broadcaster/broadcastHooks';
+import { SpreadComputationResult } from '../types/arbitrageTypes.js';
+import { SyncTrace } from '../types/SyncTrace.js';
+import { emitArbOpportunity, emitSystemLog } from '../abie/broadcaster/broadcastHooks.js';
 
 /**
  * Invoked after an arbitrage spread is detected by scanDiscrepancy().

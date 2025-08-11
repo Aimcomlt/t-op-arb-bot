@@ -1,8 +1,8 @@
 // src/abie/commands/commandHandlers.ts
 
 import { WebSocket, WebSocketServer } from 'ws';
-import { updateSlippageTolerance } from '../../config/arbitrageConfig';
-import { emitSystemLog } from '../broadcaster/broadcastHooks';
+import { updateSlippageTolerance } from '../../config/arbitrageConfig.js';
+import { emitSystemLog } from '../broadcaster/broadcastHooks.js';
 
 type ABIECommand =
   | 'adjust_slippage'

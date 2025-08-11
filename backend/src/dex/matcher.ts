@@ -1,5 +1,5 @@
-import type { PairDescriptor, Token } from './types';
-import { env } from '../config/env';
+import type { PairDescriptor, Token } from './types.js';
+import { env } from '../config/env.js';
 import { readFileSync } from 'fs';
 
 const WETH: Token = {

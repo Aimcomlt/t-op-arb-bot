@@ -5,7 +5,7 @@
  * and removes duplicates from multiple DEXs or redundant listings.
  */
 
-import { RawLP } from '../dex/dexCollector';
+import { RawLP } from '../dex/dexCollector.js';
 
 export interface CanonicalPair {
   tokenA: string;

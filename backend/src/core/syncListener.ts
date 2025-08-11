@@ -1,7 +1,7 @@
 import { Contract, WebSocketProvider, formatUnits, type EventLog } from 'ethers';
-import type { MatchedLP } from '../bootstrap/pairs';
-import { env } from '../config/env';
-import { logger } from '../utils/logger';
+import type { MatchedLP } from '../bootstrap/pairs.js';
+import { env } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 
 const SUPPLY_REFRESH_EVERY = 50;
 

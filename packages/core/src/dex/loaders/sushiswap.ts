@@ -6,9 +6,9 @@
  */
 
 import { JsonRpcProvider, Contract } from 'ethers';
-import { SUSHISWAP_FACTORY_ABI } from '../../abi-cache/FACTORY/sushiswapV2Factory';
-import { SUSHISWAP_PAIR_ABI } from '../../abi-cache/PAIR/sushiswapV2Pair';
-import { RawLP } from '../dexCollector';
+import { SUSHISWAP_FACTORY_ABI } from '../../abi-cache/FACTORY/sushiswapV2Factory.js';
+import { SUSHISWAP_PAIR_ABI } from '../../abi-cache/PAIR/sushiswapV2Pair.js';
+import { RawLP } from '../dexCollector.js';
 
 const SUSHISWAP_FACTORY_ADDRESS = '0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac'; // SushiSwap V2 Factory
 const RPC_URL = process.env.INFURA_MAINNET || '';

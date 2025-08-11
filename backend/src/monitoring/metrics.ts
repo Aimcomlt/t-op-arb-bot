@@ -6,7 +6,7 @@ import {
   collectDefaultMetrics,
   register,
 } from 'prom-client';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 
 // Collect default metrics provided by prom-client
 collectDefaultMetrics({ register });

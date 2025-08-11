@@ -1,5 +1,5 @@
 // src/abie/broadcaster/abieBroadcaster.ts
-import { attachCommandRouter } from '../commands/commandRouter';
+import { attachCommandRouter } from '../commands/commandRouter.js';
 
 import { WebSocket, WebSocketServer } from 'ws';
 

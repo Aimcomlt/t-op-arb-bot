@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
-import { logger } from '../utils/logger';
-import { sleep } from '../utils/async';
+import { logger } from '../utils/logger.js';
+import { sleep } from '../utils/async.js';
 
 export type TokenMeta = {
   address: `0x${string}`;
