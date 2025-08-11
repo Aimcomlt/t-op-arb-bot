@@ -20,8 +20,10 @@ vi.mock('../useArbStore', () => {
       at: '2024-01-01T00:00:00Z',
     },
   ];
+  const addPair = vi.fn();
   return {
-    useArbStore: (selector: any) => selector({ pairs, status: 'connected' }),
+    useArbStore: (selector: any) =>
+      selector({ pairs, status: 'connected', addPair, ingest: addPair }),
   };
 });
 
