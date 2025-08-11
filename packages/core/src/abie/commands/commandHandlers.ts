@@ -1,6 +1,6 @@
 // src/abie/commands/commandHandlers.ts
 
-import WebSocket from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { updateSlippageTolerance } from '../../config/arbitrageConfig';
 import { emitSystemLog } from '../broadcaster/broadcastHooks';
 
@@ -40,7 +40,7 @@ export const handleCommand = async (
  * Extend this as new controls become available.
  */
 const COMMAND_REGISTRY: Record<ABIECommand, CommandHandler> = {
-  adjust_slippage: (data, ws) => {
+  adjust_slippage: (data: any, ws: WebSocket) => {
     const { pairSymbol, newTolerance } = data;
     updateSlippageTolerance(pairSymbol, newTolerance);
 
@@ -50,7 +50,7 @@ const COMMAND_REGISTRY: Record<ABIECommand, CommandHandler> = {
     });
   },
 
-  enable_debug_mode: (_data, _ws) => {
+  enable_debug_mode: (_data: any, _ws: WebSocket) => {
     process.env.DEBUG_MODE = 'true';
     emitSystemLog({
       message: `ABIE debug mode enabled.`,
@@ -58,7 +58,7 @@ const COMMAND_REGISTRY: Record<ABIECommand, CommandHandler> = {
     });
   },
 
-  fetch_status: (_data, ws) => {
+  fetch_status: (_data: any, ws: WebSocket) => {
     const status = {
       uptime: process.uptime(),
       connectedClients: WebSocketServerSnapshot(),
@@ -73,7 +73,7 @@ const COMMAND_REGISTRY: Record<ABIECommand, CommandHandler> = {
     );
   },
 
-  clear_cache: (_data, _ws) => {
+  clear_cache: (_data: any, _ws: WebSocket) => {
     // Hook into cache-clearing utilities if needed
     emitSystemLog({
       message: 'Cache cleared manually.',

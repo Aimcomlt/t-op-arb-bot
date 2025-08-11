@@ -1,6 +1,6 @@
 // src/abie/commands/commandRouter.ts
 
-import WebSocket from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { handleCommand } from './commandHandlers';
 
 /**
@@ -10,7 +10,7 @@ import { handleCommand } from './commandHandlers';
  * @param ws - The WebSocket connection to bind command handling to
  */
 export function attachCommandRouter(ws: WebSocket): void {
-  ws.on('message', (data) => {
+  ws.on('message', (data: Buffer) => {
     try {
       const parsed = JSON.parse(data.toString());
 
