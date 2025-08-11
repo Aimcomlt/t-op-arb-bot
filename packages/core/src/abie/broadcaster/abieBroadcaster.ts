@@ -1,7 +1,7 @@
 // src/abie/broadcaster/abieBroadcaster.ts
 import { attachCommandRouter } from '../commands/commandRouter';
 
-import WebSocket, { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 /**
  * Creates and manages the ABIE WebSocket server for broadcasting real-time
@@ -21,7 +21,7 @@ console.log(`[ABIE] WebSocket broadcaster initialized on port ${PORT}`);
 export function broadcastABIEEvent(eventType: string, payload: any): void {
   const message = JSON.stringify({ type: eventType, data: payload });
 
-  wss.clients.forEach((client) => {
+  wss.clients.forEach((client: WebSocket) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(message);
     }

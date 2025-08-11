@@ -5,7 +5,7 @@
  * Useful for live dashboards, debug viewers, or real-time routing UIs.
  */
 
-import WebSocket, { WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 import { TokenMeta } from '../core/metaConsolidator';
 
 const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 8081;

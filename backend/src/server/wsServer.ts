@@ -18,6 +18,7 @@ export function startWsServer(port = env.WS_PORT) {
   if (wss) return controlSurface;
 
   wss = new WebSocketServer({ port });
+  globalThis.wss = wss;
   logger.info({ port }, 'WS server listening');
 
   wss.on('connection', handleConnection);
@@ -95,6 +96,7 @@ export function stopWsServer() {
 
   wss.close();
   wss = null;
+  globalThis.wss = undefined;
 }
 
 export const controlSurface = {
