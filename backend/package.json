@@ -1,0 +1,17 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "build": "tsc",
+    "lint": "echo \"lint backend\"",
+    "test": "echo \"test backend\"",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}
