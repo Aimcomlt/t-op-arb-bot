@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TokenMetaUpdate } from '../../packages/types/src';
+import type { TokenMetaUpdate } from '@t-op-arb-bot/types';
 
 type Pair = TokenMetaUpdate['payload'] & { at: string };
 

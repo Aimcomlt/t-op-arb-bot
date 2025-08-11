@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { tokenMetaUpdateSchema } from '../../../packages/types/src';
+import { tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 import { useArbStore } from '../useArbStore';
 
 export function useWebSocket() {
@@ -17,7 +17,7 @@ export function useWebSocket() {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        const parsed = tokenMetaUpdateSchema.parse(data);
+        const parsed = tokenMetaUpdateZ.parse(data);
         addPair({ ...parsed.payload, at: parsed.at });
       } catch (err) {
         console.error('Invalid message', err);
