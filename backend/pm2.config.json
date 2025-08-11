@@ -1,0 +1,9 @@
+{
+  "apps": [
+    {
+      "name": "arb-engine",
+      "script": "dist/index.js",
+      "watch": false
+    }
+  ]
+}
