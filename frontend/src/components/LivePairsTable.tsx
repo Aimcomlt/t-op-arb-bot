@@ -18,10 +18,12 @@ export default function LivePairsTable() {
   );
   const [minLiquidity, setMinLiquidity] = useState(0);
   const [minSpreadBps, setMinSpreadBps] = useState(0);
+  const pairList = Array.isArray(pairs) ? pairs : [];
+  if (!Array.isArray(pairs)) console.warn('LivePairsTable: pairs is not an array', pairs);
+
   const rows = useMemo<Row[]>(() => {
-    if (!Array.isArray(pairs)) return [];
     const map = new Map<string, Row>();
-    for (const p of pairs) {
+    for (const p of pairList) {
       const existing = map.get(p.pairSymbol) ?? { pair: p.pairSymbol };
       const price = Number(p.price);
       const liquidity = p.liquidityUSD ? Number(p.liquidityUSD) : undefined;
@@ -45,7 +47,7 @@ export default function LivePairsTable() {
           (r.liquidityUSD ?? 0) >= minLiquidity &&
           (r.spreadBps ?? -Infinity) >= minSpreadBps,
       );
-  }, [pairs, minLiquidity, minSpreadBps]);
+  }, [pairList, minLiquidity, minSpreadBps]);
 
   const format = (n?: number) => (n != null ? n.toFixed(2) : '-');
 
