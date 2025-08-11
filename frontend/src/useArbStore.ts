@@ -1,0 +1,20 @@
+import { create } from 'zustand';
+import type { TokenMetaUpdate } from '../../packages/types/src';
+
+type Pair = TokenMetaUpdate['payload'];
+
+type Status = 'disconnected' | 'connected';
+
+interface ArbState {
+  pairs: Pair[];
+  status: Status;
+  addPair: (pair: Pair) => void;
+  setStatus: (status: Status) => void;
+}
+
+export const useArbStore = create<ArbState>((set) => ({
+  pairs: [],
+  status: 'disconnected',
+  addPair: (pair) => set((s) => ({ pairs: [...s.pairs, pair] })),
+  setStatus: (status) => set({ status }),
+}));
