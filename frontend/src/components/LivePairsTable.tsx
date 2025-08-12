@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useArbStore } from '../useArbStore';
 import { shallow } from 'zustand/shallow';
+import SimulateModal from './SimulateModal';
 
 interface Row {
   pair: string;
@@ -18,6 +19,7 @@ export default function LivePairsTable() {
   );
   const [minLiquidity, setMinLiquidity] = useState(0);
   const [minSpreadBps, setMinSpreadBps] = useState(0);
+  const [simulatePair, setSimulatePair] = useState<Row | null>(null);
   const pairList = Array.isArray(pairs) ? pairs : [];
   if (!Array.isArray(pairs)) console.warn('LivePairsTable: pairs is not an array', pairs);
 
@@ -94,6 +96,7 @@ export default function LivePairsTable() {
             <th>Spread (bps)</th>
             <th>Liquidity USD</th>
             <th>Last Update</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -118,10 +121,21 @@ export default function LivePairsTable() {
               <td>
                 {r.lastUpdate ? new Date(r.lastUpdate).toLocaleTimeString() : '-'}
               </td>
+              <td>
+                <button
+                  disabled={status !== 'connected'}
+                  onClick={() => setSimulatePair(r)}
+                >
+                  Simulate
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {simulatePair && (
+        <SimulateModal pair={simulatePair} onClose={() => setSimulatePair(null)} />
+      )}
     </div>
   );
 }
