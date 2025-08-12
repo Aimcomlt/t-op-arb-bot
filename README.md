@@ -11,6 +11,7 @@ Powered by the ABIE Core (Arbitrage Bot Intelligent Engine)
 ## 🚀 Overview
 
 T-OP-Arb-Bot is a TypeScript-based, event-driven backend built to scan for profitable arbitrage opportunities across decentralized exchanges like **Uniswap** and **Sushiswap**. It features real-time Sync event listeners, ABI-independent transaction simulation, slippage-aware strategy building, and Flashbots-secure trade execution.
+It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans and V2 router swaps for on-chain arbitrage experiments.
 
 ---
 
