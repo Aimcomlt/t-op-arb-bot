@@ -6,6 +6,7 @@ import { compoundedMinOut } from '@blazing/core/utils/slippage.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import { withinGuard, type SimulationResult } from '../config/guard.js';
+import { opportunityStore } from '../core/opportunityStore.js';
 
 const commit = process.env.COMMIT ?? 'unknown';
 const builtAt = process.env.BUILT_AT ?? new Date().toISOString();
@@ -83,6 +84,13 @@ export function startHttpServer(port = env.HTTP_PORT) {
     if (req.method === 'GET' && req.url === '/pairs') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(trackedPairs));
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/opportunities') {
+      const entries = opportunityStore.snapshot();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ size: entries.length, entries }));
       return;
     }
 

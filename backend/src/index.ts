@@ -25,6 +25,7 @@ const {
   upsertSnapshot,
   broadcastUpdate,
 } = await import('./server/wsServer.js');
+const { opportunityStore } = await import('./core/opportunityStore.js');
 const { bootstrapMatchedLPs } = await import('./bootstrap/pairs.js');
 const { startSyncListener } = await import('./core/syncListener.js');
 
@@ -108,6 +109,12 @@ async function main() {
 
     upsertSnapshot(payload);
     broadcastUpdate(payload);
+
+    opportunityStore.upsert(
+      update.pairSymbol,
+      Number(update.spreadBps ?? '0'),
+      Number(update.liquidityUSD ?? '0'),
+    );
 
     if (update.blockNumber > latestBlockObserved) {
       latestBlockObserved = update.blockNumber;
