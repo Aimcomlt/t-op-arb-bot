@@ -42,3 +42,18 @@ It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans
 /frontend
   ├── src/hooks/useABIE.ts     # Frontend WebSocket listener hook
   ├── src/store/abieSlice.ts   # Redux slice for real-time strategy/event updates
+```
+
+## 🔧 Local Fork Simulation
+
+1. Copy `.env.example` to `.env` and fill `RPC_ARCHIVE` with an archive node URL and `FORK_BLOCK_NUMBER` with a recent block.
+2. Start the fork and deploy `ArbExecutor`:
+   ```sh
+   ./scripts/start-fork.sh
+   ```
+3. Run the backend against the local fork:
+   ```sh
+   RPC_HTTP_URL=http://127.0.0.1:8545 \
+   RPC_WSS_URL=ws://127.0.0.1:8545 \
+   pnpm --filter backend dev
+   ```
