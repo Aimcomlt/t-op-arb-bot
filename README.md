@@ -47,13 +47,64 @@ It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans
 ## 🔧 Local Fork Simulation
 
 1. Copy `.env.example` to `.env` and fill `RPC_ARCHIVE` with an archive node URL and `FORK_BLOCK_NUMBER` with a recent block.
-2. Start the fork and deploy `ArbExecutor`:
+2. Install the frontend wallet dependencies (only needed once):
+   ```sh
+   pnpm --filter frontend add wagmi @rainbow-me/rainbowkit viem @tanstack/react-query
+   ```
+3. Start the fork and deploy `ArbExecutor`:
    ```sh
    ./scripts/start-fork.sh
    ```
-3. Run the backend against the local fork:
+4. Run the backend against the local fork:
    ```sh
    RPC_HTTP_URL=http://127.0.0.1:8545 \
    RPC_WSS_URL=ws://127.0.0.1:8545 \
    pnpm --filter backend dev
    ```
+5. Start the frontend and connect your wallet via RainbowKit:
+   ```sh
+   pnpm --filter frontend dev
+   ```
+   Navigate to http://localhost:5173 and click **Connect Wallet**.
+
+## 📡 HTTP API
+
+### `GET /quote`
+
+Retrieve current router quotes between two tokens:
+
+```txt
+/quote?tokenIn=<address>&tokenOut=<address>&amountIn=<wei>[&blockTag=<block>]
+```
+
+Returns Uniswap and Sushiswap amounts for the provided `amountIn`.
+
+### `POST /simulate`
+
+Simulate a two-hop trade and estimate profit:
+
+```json
+{
+  "pair": "WETH/USDC",
+  "amount": "1000000000000000000",
+  "slippageBps": 100,
+  "routerOrder": "uniToSushi"
+}
+```
+
+The response includes the `quote`, `minOut` after applying `slippageBps`,
+`priceImpactBps`, and the backend records the expected profit for guard checks.
+
+## ⚖️ Slippage & Profit
+
+- `slippageBps` represents the maximum price impact (in basis points) tolerated
+  during simulation.
+- A trade only executes when the simulated profit exceeds the configured
+  `profitFloor` in `backend/src/config/guard.ts`.
+
+## 🛡️ Security Recommendations
+
+- **Profit floor:** tune `profitFloor` to ensure each trade meets a minimum
+  return.
+- **Kill switch:** set `KILL_SWITCH=true` in the backend environment to disable
+  `/execute` and halt live trading when needed.
