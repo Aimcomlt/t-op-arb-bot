@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 import { useArbStore } from '../useArbStore';
 
-export function useWebSocket() {
+export function useWebSocket(enabled = true) {
   const addPair = useArbStore((s) => s.addPair ?? s.ingest);
   const setStatus = useArbStore((s) => s.setStatus);
 
@@ -28,6 +28,11 @@ export function useWebSocket() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setStatus('disconnected');
+      return;
+    }
+
     const url = import.meta.env.VITE_WS_URL as string | undefined;
     if (!url) {
       console.warn('VITE_WS_URL is not set');
@@ -97,5 +102,5 @@ export function useWebSocket() {
     };
     // `addPair` and `setStatus` from Zustand are stable; safe to omit from deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled]);
 }

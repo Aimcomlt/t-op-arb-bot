@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useArbStore } from '../useArbStore';
-import shallow from 'zustand/shallow';
+import { shallow } from 'zustand/shallow';
 
 interface Row {
   pair: string;
