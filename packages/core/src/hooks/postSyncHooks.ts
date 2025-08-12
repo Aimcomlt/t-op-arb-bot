@@ -57,8 +57,11 @@ export async function postSyncHooks(log: SyncEventLog) {
     // 6. Build executable strategy from spread + trace
     const strategy = strategyBuilder(syncTrace, spreadResult) as unknown as ArbStrategy;
 
+    if (!strategy.shouldExecute) return;
+
     // 7. Simulate + execute trade (next step: hook into execution engine)
-    const executionResult = (await strategy.execute()) as ExecutionResult;
+    await strategy.buildCalldata();
+    const executionResult = (await strategy.dryRun()) as ExecutionResult;
 
     // 8. Send results to post-trade handling
     await postExecutionHooks({ strategy, result: executionResult });
