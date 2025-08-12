@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { compoundedMinOut } from '../../../packages/core/src/utils/slippage.ts';
 
 interface PairInfo {
   pair: string;
@@ -41,11 +42,14 @@ export default function SimulateModal({ pair, onClose }: Props) {
   const [slippageBps, setSlippageBps] = useState('0');
   const [routerOrder, setRouterOrder] = useState<'uniToSushi' | 'sushiToUni'>('uniToSushi');
   const [result, setResult] = useState<SimulationResult | null>(null);
+  const [minOut, setMinOut] = useState<string>('0');
+  const [canSimulate, setCanSimulate] = useState(true);
 
   if (!pair) return null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canSimulate) return;
     try {
       const res = await fetch('/simulate', {
         method: 'POST',
@@ -63,6 +67,32 @@ export default function SimulateModal({ pair, onClose }: Props) {
       console.error('Simulation failed', err);
     }
   };
+
+  useEffect(() => {
+    const amt = Number(amount);
+    const slip = Number(slippageBps);
+    const uniPrice = pair.uniswapPrice ?? 0;
+    const sushiPrice = pair.sushiswapPrice ?? 0;
+    if (!amt || !uniPrice || !sushiPrice) {
+      setMinOut('0');
+      setCanSimulate(true);
+      return;
+    }
+    const firstPrice = routerOrder === 'uniToSushi' ? uniPrice : sushiPrice;
+    const secondPrice = routerOrder === 'uniToSushi' ? sushiPrice : uniPrice;
+    const mid = (uniPrice + sushiPrice) / 2;
+    const impact1 = mid === 0 ? 0 : (Math.abs(firstPrice - mid) / mid) * 10000;
+    const impact2 = mid === 0 ? 0 : (Math.abs(secondPrice - mid) / mid) * 10000;
+    const ok = impact1 <= slip && impact2 <= slip;
+    setCanSimulate(ok);
+    const quote1 = amt * firstPrice;
+    const quote2 = quote1 / secondPrice;
+    const min = compoundedMinOut(
+      [BigInt(Math.floor(quote1)), BigInt(Math.floor(quote2))],
+      slip,
+    );
+    setMinOut(min.toString());
+  }, [amount, slippageBps, routerOrder, pair]);
 
   return (
     <div style={overlayStyle}>
@@ -98,8 +128,14 @@ export default function SimulateModal({ pair, onClose }: Props) {
               <option value="sushiToUni">Sushi → Uni</option>
             </select>
           </label>
+          <div>Min Out: {minOut}</div>
+          {!canSimulate && (
+            <div style={{ color: 'red' }}>Price impact exceeds slippage</div>
+          )}
           <div style={{ marginTop: '1rem' }}>
-            <button type="submit">Simulate</button>
+            <button type="submit" disabled={!canSimulate}>
+              Simulate
+            </button>
             <button type="button" onClick={onClose} style={{ marginLeft: '0.5rem' }}>
               Close
             </button>
