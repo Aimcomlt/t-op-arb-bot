@@ -7,6 +7,7 @@ export default defineConfig({
       '@backend': path.resolve(__dirname, './src'),
       '@blazing/core': path.resolve(__dirname, '../packages/core/src'),
       '@types': path.resolve(__dirname, '../packages/types/src'),
+      '@t-op-arb-bot/types': path.resolve(__dirname, '../packages/types/src'),
     },
   },
 });
