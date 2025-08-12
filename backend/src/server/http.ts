@@ -13,6 +13,9 @@ const builtAt = process.env.BUILT_AT ?? new Date().toISOString();
 let healthProbe: () => { block: number } = () => ({ block: 0 });
 let trackedPairs: unknown[] = [];
 let lastSimResult: SimulationResult | null = null;
+let providersReady = false;
+let wsServerReady = false;
+let opportunityHeapReady = false;
 
 const UNISWAP_ROUTER_ADDRESS =
   '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D' as const;
@@ -37,11 +40,37 @@ export function setTrackedPairs(pairs: unknown[]): void {
   trackedPairs = pairs;
 }
 
+export function setProvidersReady(ready: boolean): void {
+  providersReady = ready;
+}
+
+export function setWsReady(ready: boolean): void {
+  wsServerReady = ready;
+}
+
+export function setOpportunityHeapReady(ready: boolean): void {
+  opportunityHeapReady = ready;
+}
+
 export function startHttpServer(port = env.HTTP_PORT) {
   const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok', ...healthProbe() }));
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/readyz') {
+      const ready = providersReady && wsServerReady && opportunityHeapReady;
+      res.writeHead(ready ? 200 : 503, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          ready,
+          providersReady,
+          wsServerReady,
+          opportunityHeapReady,
+        }),
+      );
       return;
     }
 
