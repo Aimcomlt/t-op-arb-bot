@@ -36,6 +36,18 @@ export const broadcastMsgsTotalCounter = new Counter({
   help: 'Total number of messages broadcast to clients',
 });
 
+// Counter for dropped websocket messages due to backpressure
+export const wsMsgsDroppedTotalCounter = new Counter({
+  name: 'ws_msgs_dropped_total',
+  help: 'Total number of websocket messages dropped due to backpressure',
+});
+
+// Gauge for queued websocket messages across all clients
+export const wsQueueDepthGauge = new Gauge({
+  name: 'ws_queue_depth',
+  help: 'Number of websocket messages currently queued',
+});
+
 // Counter for errors, labeled by stage
 export const errorsTotal = new Counter({
   name: 'errors_total',

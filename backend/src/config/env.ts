@@ -47,6 +47,7 @@ export const EnvSchema = v.object({
     v.transform((v) => v ?? 'info'),
   ),
   METRICS_PORT: nonNegIntFromString(9108),
+  WS_AUTH_TOKEN: v.string(),
   WETH_ADDRESS: v.pipe(
     v.optional(v.string()),
     v.transform((v) => v ?? '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'),
