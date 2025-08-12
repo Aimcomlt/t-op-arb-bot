@@ -100,8 +100,9 @@ describe('postSyncHooks (arb planner)', () => {
     };
     const scanDiscrepancy = vi.fn().mockResolvedValue(spread);
     const profitGuard = vi.fn().mockReturnValue(true);
-    const execute = vi.fn().mockResolvedValue({ tx: '0x' });
-    const strategy = { execute };
+    const buildCalldata = vi.fn().mockResolvedValue('0x');
+    const dryRun = vi.fn().mockResolvedValue({ txHash: '0x', status: 'success' });
+    const strategy = { shouldExecute: true, reason: null, buildCalldata, dryRun };
     const strategyBuilder = vi.fn().mockReturnValue(strategy);
     const postExecutionHooks = vi.fn();
     const emitSyncEvent = vi.fn();
@@ -135,8 +136,9 @@ describe('postSyncHooks (arb planner)', () => {
       flashFee: 0n,
     });
     expect(strategyBuilder).toHaveBeenCalledWith(syncTrace, spread);
-    expect(execute).toHaveBeenCalled();
-    expect(postExecutionHooks).toHaveBeenCalledWith({ strategy, result: { tx: '0x' } });
+    expect(buildCalldata).toHaveBeenCalled();
+    expect(dryRun).toHaveBeenCalled();
+    expect(postExecutionHooks).toHaveBeenCalledWith({ strategy, result: { txHash: '0x', status: 'success' } });
   });
 
   it('returns early when no spread is found', async () => {
