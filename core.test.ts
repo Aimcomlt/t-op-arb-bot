@@ -129,7 +129,11 @@ describe('postSyncHooks (arb planner)', () => {
     });
     expect(scanDiscrepancy).toHaveBeenCalledWith(syncTrace);
     expect(emitArbOpportunity).toHaveBeenCalledWith(spread);
-    expect(profitGuard).toHaveBeenCalledWith(spread);
+    expect(profitGuard).toHaveBeenCalledWith({
+      expectedProceeds: BigInt(Math.floor(spread.estimatedProfit ?? 0)),
+      gasCost: 0n,
+      flashFee: 0n,
+    });
     expect(strategyBuilder).toHaveBeenCalledWith(syncTrace, spread);
     expect(execute).toHaveBeenCalled();
     expect(postExecutionHooks).toHaveBeenCalledWith({ strategy, result: { tx: '0x' } });

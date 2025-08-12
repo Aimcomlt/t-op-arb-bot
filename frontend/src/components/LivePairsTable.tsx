@@ -10,6 +10,7 @@ interface Row {
   spreadBps?: number;
   liquidityUSD?: number;
   lastUpdate?: string;
+  netAfterGas?: number;
 }
 
 export default function LivePairsTable() {
@@ -96,6 +97,7 @@ export default function LivePairsTable() {
             <th>Spread (bps)</th>
             <th>Liquidity USD</th>
             <th>Last Update</th>
+            <th>Net after gas</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -120,6 +122,20 @@ export default function LivePairsTable() {
               <td>{format(r.liquidityUSD)}</td>
               <td>
                 {r.lastUpdate ? new Date(r.lastUpdate).toLocaleTimeString() : '-'}
+              </td>
+              <td
+                style={{
+                  color:
+                    r.netAfterGas != null
+                      ? r.netAfterGas < 0
+                        ? 'red'
+                        : r.netAfterGas > 0
+                          ? 'green'
+                          : undefined
+                      : undefined,
+                }}
+              >
+                {r.netAfterGas != null ? r.netAfterGas.toFixed(2) : '-'}
               </td>
               <td>
                 <button

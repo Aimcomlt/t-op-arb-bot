@@ -8,9 +8,10 @@ interface PairInfo {
 }
 
 interface SimulationResult {
-  gas: number;
+  gasUsed: number;
   flashFee: number;
-  netProfit: number;
+  cost?: number;
+  netAfterGas: number;
 }
 
 interface Props {
@@ -62,7 +63,12 @@ export default function SimulateModal({ pair, onClose }: Props) {
         }),
       });
       const data = await res.json();
-      setResult(data);
+      const gasUsed = Number(data.gasUsed ?? data.gas ?? 0);
+      const flashFee = Number(data.flashFee ?? 0);
+      const cost = Number(data.cost ?? 0);
+      const quote = Number(data.quote ?? 0);
+      const netAfterGas = quote - Number(amount || 0) - cost;
+      setResult({ gasUsed, flashFee, cost, netAfterGas });
     } catch (err) {
       console.error('Simulation failed', err);
     }
@@ -143,9 +149,14 @@ export default function SimulateModal({ pair, onClose }: Props) {
         </form>
         {result && (
           <div style={{ marginTop: '1rem' }}>
-            <div>Gas: {result.gas}</div>
+            <div>Gas Used: {result.gasUsed}</div>
             <div>Flash Fee: {result.flashFee}</div>
-            <div>Net Profit: {result.netProfit}</div>
+            {result.cost != null && <div>Cost: {result.cost}</div>}
+            <div
+              style={{ color: result.netAfterGas < 0 ? 'red' : 'green' }}
+            >
+              Net after gas: {result.netAfterGas}
+            </div>
           </div>
         )}
       </div>

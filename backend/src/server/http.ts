@@ -162,14 +162,31 @@ export function startHttpServer(port = env.HTTP_PORT) {
           } as any);
           const gasUsed = (sim as any).gasUsed ?? (sim.result as any)?.gasUsed;
           const result = sim.result as any;
+
+          // estimate worst-case gas price = base fee + priority fee
+          const [block, fees] = await Promise.all([
+            publicClient.getBlock({ ...(blockNumber ? { blockNumber } : {}) }),
+            publicClient.estimateFeesPerGas(),
+          ]);
+          const baseFee = block.baseFeePerGas ?? 0n;
+          const priorityFee = (fees as any).maxPriorityFeePerGas ?? 0n;
+          const gasPrice = baseFee + priorityFee;
+
+          const flashFeeValue =
+            result?.flashFee != null
+              ? typeof result.flashFee === 'bigint'
+                ? result.flashFee
+                : BigInt(result.flashFee)
+              : BigInt(flashFee ?? 0);
+          const gasCost =
+            gasUsed != null ? BigInt(gasUsed) * gasPrice : 0n;
+          const totalCost = gasCost + flashFeeValue;
+
           const response = {
             gasUsed: gasUsed != null ? gasUsed.toString() : undefined,
-            flashFee:
-              result?.flashFee != null
-                ? typeof result.flashFee === 'bigint'
-                  ? result.flashFee.toString()
-                  : result.flashFee
-                : flashFee ?? null,
+            flashFee: flashFeeValue.toString(),
+            cost: totalCost.toString(),
+            gasPrice: gasPrice.toString(),
             amounts: Array.isArray(result?.amounts)
               ? result.amounts.map((x: any) =>
                   typeof x === 'bigint' ? x.toString() : x,

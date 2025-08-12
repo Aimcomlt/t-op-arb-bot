@@ -47,7 +47,11 @@ export async function postSyncHooks(log: SyncEventLog) {
     });
 
     // 5. Run profit guard to validate thresholds
-    const isViable = profitGuard(spreadResult);
+    const isViable = profitGuard({
+      expectedProceeds: BigInt(Math.floor(spreadResult.estimatedProfit ?? 0)),
+      gasCost: 0n,
+      flashFee: 0n,
+    });
     if (!isViable) return;
 
     // 6. Build executable strategy from spread + trace
