@@ -108,3 +108,17 @@ The response includes the `quote`, `minOut` after applying `slippageBps`,
   return.
 - **Kill switch:** set `KILL_SWITCH=true` in the backend environment to disable
   `/execute` and halt live trading when needed.
+
+## 📈 Observability
+
+The backend exposes Prometheus metrics on the port defined by `METRICS_PORT` (default `9108`).
+Start the backend and visit `http://localhost:<METRICS_PORT>/metrics` to view
+the current metrics:
+
+```sh
+METRICS_PORT=9108 pnpm --filter backend dev
+```
+
+Sample Grafana dashboards and alerting rules are provided in the `observability/`
+directory. Import `observability/dashboard.json` through **Grafana → Dashboards → Import**
+and load alert rules from `observability/alerts.yml` via **Alerting → Import**.

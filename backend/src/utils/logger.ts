@@ -1,6 +1,13 @@
 import pino from 'pino';
 import { env } from '../config/env.js';
 
+export interface LogContext {
+  requestId?: string;
+  pair?: string;
+  dex?: string;
+  block?: number;
+}
+
 /**
  * Pino logger instance configured with application log level.
  * Logs are JSON formatted and include pid and timestamp.
@@ -19,11 +26,12 @@ export const logger = pino({
  * @param block Block number where the event was observed.
  */
 export const logDexEvent = (
-  dex: string,
+  requestId: string,
   pair: string,
+  dex: string,
   block: number,
 ): void => {
-  logger.info({ dex, pair, block }, 'dex event');
+  logger.info({ requestId, pair, dex, block }, 'dex event');
 };
 
 /**
@@ -32,8 +40,14 @@ export const logDexEvent = (
  * @param stage Description of the stage or operation.
  * @param error The error instance or message.
  */
-export const logError = (stage: string, error: unknown): void => {
-  logger.error({ stage, err: error }, 'error encountered');
+export const logError = (
+  stage: string,
+  error: unknown,
+  context: LogContext = {},
+): void => {
+  logger.error({ stage, err: error, ...context }, 'error encountered');
 };
+
+export const withContext = (context: LogContext) => logger.child(context);
 
 export default logger;

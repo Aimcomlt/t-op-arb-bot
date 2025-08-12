@@ -1,0 +1,28 @@
+{
+  "title": "Arbitrage Bot Overview",
+  "uid": "arbbot-overview",
+  "version": 1,
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Quote Latency (p95)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(quote_latency_seconds_bucket[5m])) by (le))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Opportunities In Heap",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "opportunities_in_heap"
+        }
+      ]
+    }
+  ]
+}
