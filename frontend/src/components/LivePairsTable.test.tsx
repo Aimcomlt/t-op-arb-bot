@@ -28,9 +28,15 @@ vi.mock('../useArbStore', () => {
   };
 });
 
+let isConnected = true;
+vi.mock('wagmi', () => ({
+  useAccount: () => ({ isConnected }),
+}));
+
 describe('LivePairsTable', () => {
   it('renders rows and filters by liquidity', () => {
     status = 'connected';
+    isConnected = true;
     render(<LivePairsTable />);
     expect(screen.getByText('connected')).toBeInTheDocument();
     expect(screen.getByText('ETH/USDC')).toBeInTheDocument();
@@ -41,7 +47,8 @@ describe('LivePairsTable', () => {
   });
 
   it('disables simulate button when disconnected', () => {
-    status = 'disconnected';
+    status = 'connected';
+    isConnected = false;
     render(<LivePairsTable />);
     const button = screen.getByText('Simulate') as HTMLButtonElement;
     expect(button.disabled).toBe(true);

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { compoundedMinOut } from '../../../packages/core/src/utils/slippage.ts';
+import { useNotificationStore } from '../useNotificationStore';
 
 interface PairInfo {
   pair: string;
@@ -45,6 +46,8 @@ export default function SimulateModal({ pair, onClose }: Props) {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [minOut, setMinOut] = useState<string>('0');
   const [canSimulate, setCanSimulate] = useState(true);
+  const addNotification = useNotificationStore((s) => s.add);
+  const warnedRef = useRef(false);
 
   if (!pair) return null;
 
@@ -71,6 +74,7 @@ export default function SimulateModal({ pair, onClose }: Props) {
       setResult({ gasUsed, flashFee, cost, netAfterGas });
     } catch (err) {
       console.error('Simulation failed', err);
+      addNotification({ type: 'error', message: 'Simulation failed' });
     }
   };
 
@@ -91,6 +95,11 @@ export default function SimulateModal({ pair, onClose }: Props) {
     const impact2 = mid === 0 ? 0 : (Math.abs(secondPrice - mid) / mid) * 10000;
     const ok = impact1 <= slip && impact2 <= slip;
     setCanSimulate(ok);
+    if (!ok && !warnedRef.current) {
+      addNotification({ type: 'warning', message: 'Price impact exceeds slippage' });
+      warnedRef.current = true;
+    }
+    if (ok) warnedRef.current = false;
     const quote1 = amt * firstPrice;
     const quote2 = quote1 / secondPrice;
     const min = compoundedMinOut(

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useArbStore } from '../useArbStore';
 import { shallow } from 'zustand/shallow';
 import SimulateModal from './SimulateModal';
+import { useAccount } from 'wagmi';
 
 interface Row {
   pair: string;
@@ -18,6 +19,7 @@ export default function LivePairsTable() {
     (s) => ({ pairs: s.pairs, status: s.status }),
     shallow,
   );
+  const { isConnected } = useAccount();
   const [minLiquidity, setMinLiquidity] = useState(0);
   const [minSpreadBps, setMinSpreadBps] = useState(0);
   const [simulatePair, setSimulatePair] = useState<Row | null>(null);
@@ -139,7 +141,8 @@ export default function LivePairsTable() {
               </td>
               <td>
                 <button
-                  disabled={status !== 'connected'}
+                  disabled={!isConnected}
+                  style={{ opacity: isConnected ? 1 : 0.5 }}
                   onClick={() => setSimulatePair(r)}
                 >
                   Simulate
