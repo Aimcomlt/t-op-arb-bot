@@ -85,7 +85,7 @@ contract ArbExecutor is IFlashLoanSimpleReceiver {
                 leg.minOut,
                 leg.path,
                 address(this),
-                block.timestamp
+                block.timestamp + 1
             );
             currentAmount = amounts[amounts.length - 1];
             currentAsset = leg.path[leg.path.length - 1];

@@ -2,6 +2,7 @@ import http from 'node:http';
 import { createPublicClient, http as viemHttp } from 'viem';
 import { UNISWAP_ROUTER_ABI } from '@blazing/core/abi-cache/ROUTER/uniswapV2Router.js';
 import { SUSHISWAP_ROUTER_ABI } from '@blazing/core/abi-cache/ROUTER/sushiswapV2Router.js';
+import { compoundedMinOut } from '@blazing/core/utils/slippage.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
@@ -105,8 +106,52 @@ export function startHttpServer(port = env.HTTP_PORT) {
       });
       req.on('end', async () => {
         try {
-          const { address, abi, functionName, args, blockTag, flashFee } =
-            JSON.parse(body);
+          const data = JSON.parse(body);
+          if (data && data.pair) {
+            const { pair, amount, slippageBps, routerOrder } = data;
+            const entries = (trackedPairs as any[]).filter(
+              (p: any) => p.pairSymbol === pair,
+            );
+            const uni = entries.find((e: any) => e.dex === 'uniswap');
+            const sushi = entries.find((e: any) => e.dex === 'sushiswap');
+            if (!uni || !sushi) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'pair not tracked' }));
+              return;
+            }
+            const uniPrice = Number(uni.price);
+            const sushiPrice = Number(sushi.price);
+            const mid = (uniPrice + sushiPrice) / 2;
+            const firstPrice =
+              routerOrder === 'uniToSushi' ? uniPrice : sushiPrice;
+            const secondPrice =
+              routerOrder === 'uniToSushi' ? sushiPrice : uniPrice;
+            const impact1 =
+              mid === 0 ? 0 : (Math.abs(firstPrice - mid) / mid) * 10_000;
+            const impact2 =
+              mid === 0 ? 0 : (Math.abs(secondPrice - mid) / mid) * 10_000;
+            if (impact1 > slippageBps || impact2 > slippageBps) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'price impact too high' }));
+              return;
+            }
+            const quote1 = Number(amount) * firstPrice;
+            const quote2 = quote1 / secondPrice;
+            const minOut = compoundedMinOut(
+              [BigInt(Math.floor(quote1)), BigInt(Math.floor(quote2))],
+              Number(slippageBps),
+            ).toString();
+            const response = {
+              quote: quote2,
+              minOut,
+              priceImpactBps: [impact1, impact2],
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(response));
+            return;
+          }
+
+          const { address, abi, functionName, args, blockTag, flashFee } = data;
           const blockNumber = blockTag ? BigInt(blockTag) : undefined;
           const sim = await publicClient.simulateContract({
             address: address as `0x${string}`,
@@ -127,7 +172,7 @@ export function startHttpServer(port = env.HTTP_PORT) {
                 : flashFee ?? null,
             amounts: Array.isArray(result?.amounts)
               ? result.amounts.map((x: any) =>
-                  typeof x === 'bigint' ? x.toString() : x
+                  typeof x === 'bigint' ? x.toString() : x,
                 )
               : result,
             logs: (sim as any).logs ?? [],
