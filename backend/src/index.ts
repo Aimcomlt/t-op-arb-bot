@@ -1,18 +1,32 @@
 // backend/src/index.ts
 import 'dotenv/config';
-import { env } from './config/env.js';
-import { logger } from './utils/logger.js';
+import { safeParse } from 'valibot';
+import type { SyncUpdate } from './core/syncListener.js';
+import { EnvSchema, setEnv, env } from './config/env.js';
 
-import { startHttpServer, setHealthProbe } from './server/http.js';
-import { startMetricsServer } from './monitoring/metrics.js';
-import {
+const parsed = safeParse(EnvSchema, process.env);
+if (!parsed.success) {
+  console.error('Invalid environment variables', parsed.issues);
+  process.exit(1);
+}
+setEnv(parsed.output);
+
+const { logger } = await import('./utils/logger.js');
+const {
+  startHttpServer,
+  setHealthProbe,
+  setProvidersReady,
+  setWsReady,
+  setOpportunityHeapReady,
+} = await import('./server/http.js');
+const { startMetricsServer } = await import('./monitoring/metrics.js');
+const {
   startWsServer,
   upsertSnapshot,
   broadcastUpdate,
-} from './server/wsServer.js';
-
-import { bootstrapMatchedLPs } from './bootstrap/pairs.js';
-import { startSyncListener, type SyncUpdate } from './core/syncListener.js';
+} = await import('./server/wsServer.js');
+const { bootstrapMatchedLPs } = await import('./bootstrap/pairs.js');
+const { startSyncListener } = await import('./core/syncListener.js');
 
 async function main() {
   logger.info({ env: { chainId: env.CHAIN_ID } }, 'Boot start');
@@ -21,10 +35,12 @@ async function main() {
   startMetricsServer(env.METRICS_PORT);
   startHttpServer(); // exposes /healthz, /version, /pairs
   startWsServer(env.WS_PORT);
+  setWsReady(true);
 
   // 2) Collect & match LPs (Uniswap/Sushi) → canonical matched list
   logger.info('Collecting & matching LPs…');
   const matchedLPs = await bootstrapMatchedLPs();
+  setProvidersReady(true);
   logger.info({ count: matchedLPs.length }, 'Matched LPs ready');
 
   // 3) Wire health probe to latest block observed by SyncListener
@@ -97,6 +113,7 @@ async function main() {
       latestBlockObserved = update.blockNumber;
     }
   });
+  setOpportunityHeapReady(true);
 
   logger.info(
     { wsPort: env.WS_PORT, metricsPort: env.METRICS_PORT },
