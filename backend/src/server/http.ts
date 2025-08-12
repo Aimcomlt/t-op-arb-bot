@@ -5,12 +5,14 @@ import { SUSHISWAP_ROUTER_ABI } from '@blazing/core/abi-cache/ROUTER/sushiswapV2
 import { compoundedMinOut } from '@blazing/core/utils/slippage.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
+import { withinGuard, type SimulationResult } from '../config/guard.js';
 
 const commit = process.env.COMMIT ?? 'unknown';
 const builtAt = process.env.BUILT_AT ?? new Date().toISOString();
 
 let healthProbe: () => { block: number } = () => ({ block: 0 });
 let trackedPairs: unknown[] = [];
+let lastSimResult: SimulationResult | null = null;
 
 const UNISWAP_ROUTER_ADDRESS =
   '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D' as const;
@@ -146,6 +148,13 @@ export function startHttpServer(port = env.HTTP_PORT) {
               minOut,
               priceImpactBps: [impact1, impact2],
             };
+            const profit = quote2 - Number(amount);
+            lastSimResult = {
+              pair,
+              gasUsed: 0n,
+              priceImpactBps: Math.max(impact1, impact2),
+              expectedProfit: profit,
+            };
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(response));
             return;
@@ -194,6 +203,12 @@ export function startHttpServer(port = env.HTTP_PORT) {
               : result,
             logs: (sim as any).logs ?? [],
           };
+          lastSimResult = {
+            pair: 'generic',
+            gasUsed: gasUsed != null ? BigInt(gasUsed) : 0n,
+            priceImpactBps: 0,
+            expectedProfit: 0,
+          };
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(response));
         } catch (err) {
@@ -202,6 +217,22 @@ export function startHttpServer(port = env.HTTP_PORT) {
           res.end(JSON.stringify({ error: 'simulation failed' }));
         }
       });
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/execute') {
+      if (env.KILL_SWITCH) {
+        res.writeHead(503, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'execution disabled' }));
+        return;
+      }
+      if (!lastSimResult || !withinGuard(lastSimResult)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'simulation thresholds not met' }));
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'broadcasted' }));
       return;
     }
 

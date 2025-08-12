@@ -41,6 +41,7 @@ const envSchema = z.object({
   COLLECT_CONCURRENCY: z.coerce.number().int().positive().default(2), // calls in flight
   CHUNK_DELAY_MS: z.coerce.number().int().nonnegative().default(500), // pause between chunks
   START_INDEX: z.coerce.number().int().nonnegative().default(0), // optional offset
+  KILL_SWITCH: z.coerce.boolean().default(false),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
