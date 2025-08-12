@@ -1,4 +1,6 @@
 import { Contract, WebSocketProvider, formatUnits, type EventLog } from 'ethers';
+import { retry } from '@blazing/core/utils/retry.js';
+import { CircuitBreaker } from './circuitBreaker.js';
 import type { MatchedLP } from '../bootstrap/pairs.js';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
@@ -39,6 +41,8 @@ export async function startSyncListener(
   onLPUpdate: (u: LPUpdate) => void = () => {}
 ): Promise<void> {
   const provider = new WebSocketProvider(env.RPC_WSS_URL);
+  const breaker = new CircuitBreaker();
+  const rpcCall = <T>(fn: () => Promise<T>) => breaker.exec(() => retry(fn));
 
   for (const pair of matched) {
     const uni = new Contract(pair.uniswapLP, PAIR_ABI, provider);
@@ -55,7 +59,7 @@ export async function startSyncListener(
       blockNumber: number
     ) => {
       try {
-        const total = await contract.totalSupply();
+        const total = await rpcCall(() => contract.totalSupply());
         const cached = dex === 'uniswap' ? uniSupply : sushiSupply;
         if (cached !== null && total === cached) return;
         if (dex === 'uniswap') {
@@ -88,8 +92,8 @@ export async function startSyncListener(
       try {
         // Read latest reserves from BOTH sides at time of event
         const [[ru0, ru1, /*tsU*/], [rs0, rs1, /*tsS*/]] = await Promise.all([
-          uni.getReserves(),
-          sushi.getReserves(),
+          rpcCall(() => uni.getReserves()),
+          rpcCall(() => sushi.getReserves()),
         ]);
 
         // Normalize to decimals
