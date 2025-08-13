@@ -1,4 +1,4 @@
-import { viemClient } from '../clients/viemClient.js';
+import { publicClient } from '../clients/viemClient.js';
 import { UNISWAP_PAIR_ABI } from '../abi-cache/PAIR/uniswapV2Pair.js';
 
 // Cache reserves keyed by block number then pool address
@@ -16,24 +16,24 @@ export async function fetchReserves(
 
   const missing = pools.filter((p) => !blockCache!.has(p));
   if (missing.length > 0) {
-    const contracts = missing.map((address) => ({
-      address,
-      abi: UNISWAP_PAIR_ABI,
-      functionName: 'getReserves' as const,
-    }));
-    const results = await viemClient.multicall({
-      contracts,
+    const results = await publicClient.readContracts({
+      allowFailure: false,
       blockNumber,
-      allowFailure: true,
+      contracts: missing.map((address) => ({
+        address,
+        abi: UNISWAP_PAIR_ABI,
+        functionName: 'getReserves' as const,
+      })),
     });
     missing.forEach((addr, i) => {
-      const res = results[i];
-      if (res && res.result) {
-        const [r0, r1] = res.result as readonly [bigint, bigint, bigint];
-        blockCache!.set(addr, [r0, r1]);
-      } else {
-        blockCache!.set(addr, [0n, 0n]);
-      }
+      const item = results[i] as
+        | readonly [bigint, bigint, bigint]
+        | readonly [readonly [bigint, bigint, bigint], unknown, unknown];
+      const reserves = Array.isArray(item[0])
+        ? (item[0] as readonly [bigint, bigint, bigint])
+        : (item as readonly [bigint, bigint, bigint]);
+      const [r0, r1] = reserves;
+      blockCache!.set(addr, [r0, r1]);
     });
   }
 
