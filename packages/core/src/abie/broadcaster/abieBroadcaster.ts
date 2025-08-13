@@ -13,13 +13,35 @@ const wss = new WebSocketServer({ port: PORT });
 console.log(`[ABIE] WebSocket broadcaster initialized on port ${PORT}`);
 
 /**
+ * Convert any numeric values in the payload into strings for consistent
+ * downstream handling.
+ */
+function convertNumbersToStrings(value: any): any {
+  if (Array.isArray(value)) {
+    return value.map(convertNumbersToStrings);
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value).reduce<Record<string, any>>((acc, [key, val]) => {
+      acc[key] = convertNumbersToStrings(val);
+      return acc;
+    }, {});
+  }
+  if (typeof value === 'number') {
+    return value.toString();
+  }
+  return value;
+}
+
+/**
  * Broadcast a typed message to all connected ABIE listeners (e.g. frontend UI, CLI tools).
- * 
+ *
  * @param eventType - A short string representing the type of event (e.g., 'arb_opportunity')
- * @param payload - Any JSON-serializable object representing the event data
+ * @param payload - Any JSON-serializable object representing the event data. Number values
+ *   are converted to strings before broadcast.
  */
 export function broadcastABIEEvent(eventType: string, payload: any): void {
-  const message = JSON.stringify({ type: eventType, data: payload });
+  const sanitizedPayload = convertNumbersToStrings(payload);
+  const message = JSON.stringify({ type: eventType, data: sanitizedPayload });
 
   wss.clients.forEach((client: WebSocket) => {
     if (client.readyState === WebSocket.OPEN) {

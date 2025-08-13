@@ -24,16 +24,16 @@ export interface ABIEEventPayloads {
   sync_event: {
     pairSymbol: string;
     dex: string;
-    reserves: { reserve0: string; reserve1: string };
-    timestamp: number;
+    reserves: { reserve0: string | number; reserve1: string | number };
+    timestamp: string | number;
   };
   arb_opportunity: {
     tokenIn: string;
     tokenOut: string;
-    spread: string;
+    spread: string | number;
     buyOn: string;
     sellOn: string;
-    estimatedProfit: string;
+    estimatedProfit: string | number;
   };
   execution_result: {
     txHash: string;
