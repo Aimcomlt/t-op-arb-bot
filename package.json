@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
-    "build": "pnpm -r build",
+    "build": "pnpm -r --filter ./packages/types build && pnpm -r --filter ./packages/core build && pnpm -r --filter ./frontend build",
+    "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "format": "pnpm -r format"
