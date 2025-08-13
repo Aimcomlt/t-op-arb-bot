@@ -6,6 +6,7 @@ import { decodeRawArgsHex } from "../../utils/decodeRawArgsHex.js";
 import { fetchAbiSignature } from "../../utils/fetchAbiSignature.js";
 import type { TraceResult } from '@t-op-arb-bot/types';
 import { parseTrace } from "../../utils/traceParsers.js";
+import { traceCache } from "../../utils/traceCache.js";
 
 interface SimulationInput {
   txHash: string;
@@ -13,12 +14,21 @@ interface SimulationInput {
 
 export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<TraceResult | null> {
   try {
+    const cached = traceCache.get(txHash);
+    if (cached) return cached;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 7000);
+
     const trace = await viemClient.debug_traceTransaction({
       hash: txHash,
-      tracer: "callTracer"
+      tracer: "callTracer",
+      signal: controller.signal
     });
 
-    const callData = trace?.calls?.[0]?.input || trace?.input;
+    clearTimeout(timeout);
+
+    const callData = trace?.input || trace?.calls?.[0]?.input;
 
     if (!callData) throw new Error("No calldata found in trace");
 
@@ -41,6 +51,8 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Tr
 
     // Wrap output for postExecutionHooks
     const parsedTrace = parseTrace(trace, decoded);
+
+    traceCache.set(txHash, parsedTrace);
 
     return parsedTrace;
 
