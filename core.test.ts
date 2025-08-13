@@ -125,11 +125,21 @@ describe('postSyncHooks (arb planner)', () => {
     expect(emitSyncEvent).toHaveBeenCalledWith({
       pairSymbol: syncTrace.pairSymbol,
       dex: syncTrace.dex,
-      reserves: syncTrace.reservesAfter,
+      reserves: {
+        reserve0: String(syncTrace.reservesAfter[0]),
+        reserve1: String(syncTrace.reservesAfter[1])
+      },
       timestamp: syncTrace.timestamp
     });
     expect(scanDiscrepancy).toHaveBeenCalledWith(syncTrace);
-    expect(emitArbOpportunity).toHaveBeenCalledWith(spread);
+    expect(emitArbOpportunity).toHaveBeenCalledWith({
+      tokenIn: spread.tokenIn,
+      tokenOut: spread.tokenOut,
+      spread: String(spread.spread),
+      buyOn: spread.buyOn,
+      sellOn: spread.sellOn,
+      estimatedProfit: String(spread.estimatedProfit)
+    });
     expect(profitGuard).toHaveBeenCalledWith({
       expectedProceeds: BigInt(Math.floor(spread.estimatedProfit ?? 0)),
       gasCost: 0n,

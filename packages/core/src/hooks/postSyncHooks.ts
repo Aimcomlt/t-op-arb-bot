@@ -27,7 +27,10 @@ export async function postSyncHooks(log: SyncEventLog) {
     emitSyncEvent({
       pairSymbol: syncTrace.pairSymbol,
       dex: syncTrace.dex,
-      reserves: syncTrace.reservesAfter,
+      reserves: {
+        reserve0: String(syncTrace.reservesAfter[0]),
+        reserve1: String(syncTrace.reservesAfter[1])
+      },
       timestamp: syncTrace.timestamp
     });
 
@@ -40,10 +43,10 @@ export async function postSyncHooks(log: SyncEventLog) {
     emitArbOpportunity({
       tokenIn: spreadResult.tokenIn,
       tokenOut: spreadResult.tokenOut,
-      spread: spreadResult.spread,
+      spread: String(spreadResult.spread),
       buyOn: spreadResult.buyOn,
       sellOn: spreadResult.sellOn,
-      estimatedProfit: spreadResult.estimatedProfit
+      estimatedProfit: String(spreadResult.estimatedProfit)
     });
 
     // 5. Run profit guard to validate thresholds
