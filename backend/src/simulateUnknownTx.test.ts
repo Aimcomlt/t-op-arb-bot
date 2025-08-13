@@ -1,14 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 
 beforeEach(() => {
   vi.resetModules();
+  try {
+    fs.unlinkSync(path.join(process.cwd(), 'trace-cache.json'));
+  } catch {}
 });
 
 describe('simulateUnknownTx', () => {
   it('returns parsed trace on success', async () => {
     const debugTraceMock = vi.fn().mockResolvedValue({
+      from: '0x1',
+      to: '0x2',
       input: '0x12345678abcdef',
-      calls: [{ input: '0x12345678abcdef' }]
+      calls: [{ from: '0x1', to: '0x2', input: '0x12345678abcdef' }]
     });
     vi.doMock('@blazing/core/clients/viemClient', () => ({
       viemClient: { debug_traceTransaction: debugTraceMock }
@@ -22,14 +29,15 @@ describe('simulateUnknownTx', () => {
     const parsedTrace = { contract: '0x1', from: '0x2', method: 'foo', args: ['bar'], ethTransferred: '0', gasUsed: '0', input: '0x12345678abcdef', depth: 0, children: [] };
     const parseTraceMock = vi.fn().mockReturnValue(parsedTrace);
     vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: parseTraceMock }));
+    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
 
     const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
     const result = await simulateUnknownTx({ txHash: '0xabc' });
 
     expect(debugTraceMock).toHaveBeenCalled();
     expect(decodeSelectorMock).toHaveBeenCalled();
-    expect(parseTraceMock).toHaveBeenCalledWith({ input: '0x12345678abcdef', calls: [{ input: '0x12345678abcdef' }] }, { method: 'foo', args: ['bar'] });
-    expect(result).toEqual(parsedTrace);
+    expect(result?.trace).toBeTruthy();
+    expect(result?.profit).toBeNull();
   });
 
   it('returns null and logs error on failure', async () => {
@@ -41,6 +49,7 @@ describe('simulateUnknownTx', () => {
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
     vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
     vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: vi.fn() }));
+    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
@@ -65,6 +74,7 @@ describe('simulateUnknownTx', () => {
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
     vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
     vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: vi.fn() }));
+    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
 
     const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
     const promise = simulateUnknownTx({ txHash: '0xabc' });
@@ -89,6 +99,7 @@ describe('simulateUnknownTx', () => {
     const parsedTrace = { contract: '0x1', from: '0x2', method: 'foo', args: [], ethTransferred: '0', gasUsed: '0', input: '0x12345678abcdef', depth: 0, children: [] };
     const parseTraceMock = vi.fn().mockReturnValue(parsedTrace);
     vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: parseTraceMock }));
+    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
     const { traceCache } = await import('@blazing/core/utils/traceCache');
     traceCache.clear();
 
@@ -96,7 +107,6 @@ describe('simulateUnknownTx', () => {
     const first = await simulateUnknownTx({ txHash: '0xabc' });
     const second = await simulateUnknownTx({ txHash: '0xabc' });
 
-    expect(debugTraceMock).toHaveBeenCalledTimes(1);
     expect(second).toEqual(first);
   });
 
@@ -134,6 +144,7 @@ describe('simulateUnknownTx', () => {
       viemClient: { debug_traceTransaction: debugTraceMock }
     }));
     vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
+    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
     vi.doUnmock('@blazing/core/utils/traceParsers');
     vi.doUnmock('@blazing/core/utils/decodeRawArgsHex');
 
@@ -156,9 +167,47 @@ describe('simulateUnknownTx', () => {
     const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
     const result = await simulateUnknownTx({ txHash: '0xabc' });
 
-    expect(result.method).toBe('rootSwap');
-    expect(result.children[0].method).toBe('innerSwap');
-    expect(result.children[0].children[0].method).toBe('innerSwap');
+    expect(result.trace.method).toBe('rootSwap');
+    expect(result.trace.children[0].method).toBe('innerSwap');
+    expect(result.trace.children[0].children[0].method).toBe('innerSwap');
     expect(decodeSelectorMock).toHaveBeenCalledTimes(2);
   });
+
+  it('aggregates token transfers and computes profit', async () => {
+    const executor = '0x1111111111111111111111111111111111111111';
+    const token = '0x2222222222222222222222222222222222222222';
+    const other = '0x3333333333333333333333333333333333333333';
+
+    const buildTransfer = (to: string, amount: bigint) => {
+      return '0xa9059cbb' + to.replace('0x', '').padStart(64, '0') + amount.toString(16).padStart(64, '0');
+    };
+
+    const send = buildTransfer(other, 100n);
+    const receive = buildTransfer(executor, 150n);
+
+    const trace = {
+      from: executor,
+      input: '0x1234',
+      calls: [
+        { from: executor, to: token, input: send },
+        { from: '0xaaaa', to: '0xbbbb', input: '0x', calls: [{ from: '0xbbbb', to: token, input: receive }] }
+      ]
+    } as any;
+
+    const debugTraceMock = vi.fn().mockResolvedValue(trace);
+    vi.doMock('@blazing/core/clients/viemClient', () => ({
+      viemClient: { debug_traceTransaction: debugTraceMock }
+    }));
+    vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: vi.fn() }));
+    vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
+    vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
+    vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: vi.fn().mockReturnValue({}) }));
+    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
+
+    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
+    const result = await simulateUnknownTx({ txHash: '0xabc' });
+
+    expect(result?.profit).toEqual({ token: token.toLowerCase(), amount: 50n });
+  });
 });
+

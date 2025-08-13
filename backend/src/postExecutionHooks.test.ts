@@ -24,7 +24,7 @@ describe('postExecutionHooks', () => {
     const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
     const { formatTraceForLogs } = await import('@blazing/core/utils/formatTraceForLogs');
 
-    (simulateUnknownTx as any).mockResolvedValue({ trace: true });
+    (simulateUnknownTx as any).mockResolvedValue({ trace: {}, profit: null });
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await postExecutionHooks({
@@ -42,7 +42,7 @@ describe('postExecutionHooks', () => {
     expect(updateSlippageTolerance).toHaveBeenCalledWith('ETH/USDT', '1');
     expect(hooks.emitRevertAlert).not.toHaveBeenCalled();
     expect(simulateUnknownTx).toHaveBeenCalledWith({ txHash: '0xabc' });
-    expect(formatTraceForLogs).toHaveBeenCalledWith({ trace: true });
+    expect(formatTraceForLogs).toHaveBeenCalledWith({});
     expect(consoleLog).toHaveBeenCalled();
     expect(hooks.emitSystemLog).toHaveBeenCalled();
     consoleLog.mockRestore();

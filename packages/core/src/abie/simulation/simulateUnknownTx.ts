@@ -7,12 +7,29 @@ import { fetchAbiSignature } from "../../utils/fetchAbiSignature.js";
 import type { TraceResult } from '@t-op-arb-bot/types';
 import { parseTrace } from "../../utils/traceParsers.js";
 import { traceCache } from "../../utils/traceCache.js";
+import { computeNetTokenFlow } from "../../utils/computeNetTokenFlow.js";
+import { fetchTokenPrice } from "../../utils/fetchTokenPrice.js";
 
 interface SimulationInput {
   txHash: string;
 }
 
-export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<TraceResult | null> {
+export interface SimulationResult {
+  trace: TraceResult;
+  profit: { token: string; amount: bigint } | null;
+}
+
+function flattenCalls(calls: any[] = []): any[] {
+  const out: any[] = [];
+  const dfs = (c: any) => {
+    out.push(c);
+    if (c.calls) c.calls.forEach(dfs);
+  };
+  calls.forEach(dfs);
+  return out;
+}
+
+export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<SimulationResult | null> {
   try {
     const cached = traceCache.get(txHash);
     if (cached) return cached;
@@ -49,12 +66,29 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Tr
       }
     }
 
+    // Flatten calls and compute net token flow
+    const flat = flattenCalls(trace.calls || []);
+    const flows = computeNetTokenFlow(flat, trace.from);
+
+    let profit: { token: string; amount: bigint } | null = null;
+    let maxBase = 0;
+    for (const [token, amount] of flows.entries()) {
+      if (amount <= 0n) continue;
+      const price = await fetchTokenPrice(token); // base token per token
+      const baseValue = Number(amount) * price;
+      if (baseValue > maxBase) {
+        maxBase = baseValue;
+        profit = { token, amount };
+      }
+    }
+
     // Wrap output for postExecutionHooks
     const parsedTrace = parseTrace(trace, decoded);
+    const result: SimulationResult = { trace: parsedTrace, profit };
 
-    traceCache.set(txHash, parsedTrace);
+    traceCache.set(txHash, result);
 
-    return parsedTrace;
+    return result;
 
   } catch (error) {
     console.error(`simulateUnknownTx failed for ${txHash}:`, error);
