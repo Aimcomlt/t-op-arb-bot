@@ -43,4 +43,9 @@ describe('strategyBuilder guardrails', () => {
     expect(strat.shouldExecute).toBe(false);
     expect(strat.reason).toBe('rvClamp');
   });
+
+  it('plumbs safeLoanSize into resulting strategy', () => {
+    const strat = strategyBuilder(baseTrace, { ...baseSpread, safeLoanSize: 42n }, config);
+    expect(strat.safeLoanSize).toBe(42n);
+  });
 });

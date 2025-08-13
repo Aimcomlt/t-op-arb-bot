@@ -9,6 +9,7 @@ import { parseTrace } from "../../utils/traceParsers.js";
 import { traceCache } from "../../utils/traceCache.js";
 import { computeNetTokenFlow } from "../../utils/computeNetTokenFlow.js";
 import { fetchTokenPrice } from "../../utils/fetchTokenPrice.js";
+import { computeSafeFlashLoanSize } from "../../utils/flashLoanSizing.js";
 
 interface SimulationInput {
   txHash: string;
@@ -17,6 +18,7 @@ interface SimulationInput {
 export interface SimulationResult {
   trace: TraceResult;
   profit: { token: string; amount: bigint } | null;
+  safeLoanSize: bigint;
 }
 
 function flattenCalls(calls: any[] = []): any[] {
@@ -82,9 +84,17 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Si
       }
     }
 
+    // Estimate a safe flash loan size based on constant-product math.
+    // Pool reserves are placeholders until integrated with real data.
+    const safeLoanSize = computeSafeFlashLoanSize({
+      buyPool: { reserveIn: 0n, reserveOut: 0n },
+      sellPool: { reserveIn: 0n, reserveOut: 0n },
+      maxSlippageBps: 100,
+    });
+
     // Wrap output for postExecutionHooks
     const parsedTrace = parseTrace(trace, decoded);
-    const result: SimulationResult = { trace: parsedTrace, profit };
+    const result: SimulationResult = { trace: parsedTrace, profit, safeLoanSize };
 
     traceCache.set(txHash, result);
 
