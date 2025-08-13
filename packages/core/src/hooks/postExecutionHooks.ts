@@ -69,9 +69,9 @@ export async function postExecutionHooks({ strategy, result }: PostExecutionCont
   // 5. Simulate unknown tx trace and log if traceable
   if (txHash) {
     try {
-      const traceResult = await simulateUnknownTx({ txHash });
-      if (traceResult) {
-        const traceLog = formatTraceForLogs(traceResult);
+      const sim = await simulateUnknownTx({ txHash });
+      if (sim?.trace) {
+        const traceLog = formatTraceForLogs(sim.trace);
         console.log(`\n--- [Simulated TX Trace: ${txHash}] ---`);
         console.log(traceLog);
         console.log("--- [End Trace] ---\n");
