@@ -36,9 +36,10 @@ describe('simulateUnknownTx', () => {
     vi.doMock('@blazing/core/utils/fetchReserves', () => ({ fetchReserves: vi.fn().mockResolvedValue({}) }));
 
     const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
+    const { debugClient } = await import('@blazing/core/clients/viemClient');
     const result = await simulateUnknownTx({ txHash: '0xabc' });
 
-    expect(debugTraceMock).toHaveBeenCalled();
+    expect(debugClient.traceTransaction).toHaveBeenCalled();
     expect(decodeSelectorMock).toHaveBeenCalled();
     expect(result?.trace).toBeTruthy();
     expect(result?.profit).toBeNull();
