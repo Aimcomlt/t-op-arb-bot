@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
-const CACHE_FILE = path.join(process.cwd(), 'selector-cache.json');
+// Persist ABI cache so selectors don't need to be re-fetched every run
+const CACHE_FILE = path.join(process.cwd(), 'abi-cache.json');
 
 class LRUCache<K, V> {
   private cache = new Map<K, V>();
@@ -48,3 +49,10 @@ class LRUCache<K, V> {
 }
 
 export const selectorAbiCache = new LRUCache<string, any>();
+
+export function clearAbiCache() {
+  selectorAbiCache.clear();
+  try {
+    fs.unlinkSync(CACHE_FILE);
+  } catch {}
+}

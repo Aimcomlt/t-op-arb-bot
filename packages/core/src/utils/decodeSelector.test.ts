@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { decodeSelector, registerSelector, clearSelectorCache } from './decodeSelector.js';
+import { decodeSelector, registerSelector, clearAbiCache } from './decodeSelector.js';
 import { Interface } from 'ethers';
 
 const iface = new Interface(['function transfer(address to, uint256 value)']);
@@ -11,7 +11,7 @@ const selector = data.slice(0, 10);
 
 describe('decodeSelector', () => {
   beforeEach(() => {
-    clearSelectorCache();
+    clearAbiCache();
     registerSelector(selector, ['function transfer(address to, uint256 value)']);
   });
 

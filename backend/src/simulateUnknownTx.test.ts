@@ -7,6 +7,9 @@ beforeEach(() => {
   try {
     fs.unlinkSync(path.join(process.cwd(), 'trace-cache.json'));
   } catch {}
+  try {
+    fs.unlinkSync(path.join(process.cwd(), 'abi-cache.json'));
+  } catch {}
 });
 
 describe('simulateUnknownTx', () => {
@@ -72,7 +75,7 @@ describe('simulateUnknownTx', () => {
     vi.doMock('@blazing/core/clients/viemClient', () => ({
       viemClient: { debug_traceTransaction: debugTraceMock }
     }));
-    vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: vi.fn(), registerSelector: vi.fn(), clearSelectorCache: vi.fn() }));
+    vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: vi.fn(), registerSelector: vi.fn(), clearAbiCache: vi.fn() }));
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
     vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
     vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: vi.fn().mockResolvedValue({}) }));
@@ -96,7 +99,7 @@ describe('simulateUnknownTx', () => {
     vi.doMock('@blazing/core/clients/viemClient', () => ({
       viemClient: { debug_traceTransaction: debugTraceMock }
     }));
-    vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: () => ({ method: 'foo', args: [] }), registerSelector: vi.fn(), clearSelectorCache: vi.fn() }));
+    vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: () => ({ method: 'foo', args: [] }), registerSelector: vi.fn(), clearAbiCache: vi.fn() }));
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
     vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
     const parsedTrace = { contract: '0x1', from: '0x2', method: 'foo', args: [], ethTransferred: '0', gasUsed: '0', input: '0x12345678abcdef', depth: 0, children: [] };
@@ -164,7 +167,7 @@ describe('simulateUnknownTx', () => {
     vi.doMock('@blazing/core/utils/decodeSelector', () => ({
       decodeSelector: decodeSelectorMock,
       registerSelector: vi.fn(),
-      clearSelectorCache: vi.fn()
+      clearAbiCache: vi.fn()
     }));
 
     const { traceCache } = await import('@blazing/core/utils/traceCache');
