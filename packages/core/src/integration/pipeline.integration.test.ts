@@ -22,11 +22,26 @@ describe('sync pipeline integration', () => {
     const result = scanDiscrepancy(snapshots);
     if (result) {
       heap.insert(result);
-      hooks.emitArbOpportunity(result);
+      const payload = {
+        tokenIn: result.tokenIn,
+        tokenOut: result.tokenOut,
+        buyOn: result.buyOn,
+        sellOn: result.sellOn,
+        spread: result.spread.toString(),
+        estimatedProfit: result.estimatedProfit.toString(),
+      };
+      hooks.emitArbOpportunity(payload);
     }
 
     expect(heap.items).toHaveLength(1);
-    expect(broadcastSpy).toHaveBeenCalledWith(result);
+    expect(broadcastSpy).toHaveBeenCalledWith({
+      tokenIn: result!.tokenIn,
+      tokenOut: result!.tokenOut,
+      buyOn: result!.buyOn,
+      sellOn: result!.sellOn,
+      spread: result!.spread.toString(),
+      estimatedProfit: result!.estimatedProfit.toString(),
+    });
 
     broadcastSpy.mockRestore();
   });
