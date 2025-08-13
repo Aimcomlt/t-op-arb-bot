@@ -21,7 +21,7 @@ describe('simulateUnknownTx', () => {
       calls: [{ from: '0x1', to: '0x2', input: '0x12345678abcdef' }]
     });
     vi.doMock('@blazing/core/clients/viemClient', () => ({
-      viemClient: { debug_traceTransaction: debugTraceMock }
+      debugClient: { traceTransaction: debugTraceMock }
     }));
     const decodeSelectorMock = vi.fn().mockReturnValue({ method: 'foo', args: ['bar'] });
     vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: decodeSelectorMock }));
@@ -47,7 +47,7 @@ describe('simulateUnknownTx', () => {
   it('returns null and logs error on failure', async () => {
     const debugTraceMock = vi.fn().mockRejectedValue(new Error('boom'));
     vi.doMock('@blazing/core/clients/viemClient', () => ({
-      viemClient: { debug_traceTransaction: debugTraceMock }
+      debugClient: { traceTransaction: debugTraceMock }
     }));
     vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: vi.fn() }));
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
@@ -64,40 +64,12 @@ describe('simulateUnknownTx', () => {
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
-
-  it('aborts trace after timeout', async () => {
-    vi.useFakeTimers();
-    const debugTraceMock = vi.fn().mockImplementation(({ signal }) => {
-      return new Promise((_, reject) => {
-        signal.addEventListener('abort', () => reject(new Error('aborted')));
-      });
-    });
-    vi.doMock('@blazing/core/clients/viemClient', () => ({
-      viemClient: { debug_traceTransaction: debugTraceMock }
-    }));
-    vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: vi.fn(), registerSelector: vi.fn(), clearAbiCache: vi.fn() }));
-    vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
-    vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
-    vi.doMock('@blazing/core/utils/traceParsers', () => ({ parseTrace: vi.fn().mockResolvedValue({}) }));
-    vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
-    vi.doMock('@blazing/core/utils/fetchReserves', () => ({ fetchReserves: vi.fn().mockResolvedValue({}) }));
-
-    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
-    const promise = simulateUnknownTx({ txHash: '0xabc' });
-    vi.advanceTimersByTime(7000);
-    const result = await promise;
-
-    expect(result).toBeNull();
-    expect(debugTraceMock).toHaveBeenCalled();
-    vi.useRealTimers();
-  });
-
   it('uses cached trace on subsequent calls', async () => {
     const debugTraceMock = vi.fn().mockResolvedValue({
       input: '0x12345678abcdef'
     });
     vi.doMock('@blazing/core/clients/viemClient', () => ({
-      viemClient: { debug_traceTransaction: debugTraceMock }
+      debugClient: { traceTransaction: debugTraceMock }
     }));
     vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: () => ({ method: 'foo', args: [] }), registerSelector: vi.fn(), clearAbiCache: vi.fn() }));
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));
@@ -148,7 +120,7 @@ describe('simulateUnknownTx', () => {
     };
     const debugTraceMock = vi.fn().mockResolvedValue(trace);
     vi.doMock('@blazing/core/clients/viemClient', () => ({
-      viemClient: { debug_traceTransaction: debugTraceMock }
+      debugClient: { traceTransaction: debugTraceMock }
     }));
     vi.doMock('@blazing/core/utils/fetchAbiSignature', () => ({ fetchAbiSignature: vi.fn() }));
     vi.doMock('@blazing/core/utils/fetchTokenPrice', () => ({ fetchTokenPrice: vi.fn().mockResolvedValue(1) }));
@@ -204,7 +176,7 @@ describe('simulateUnknownTx', () => {
 
     const debugTraceMock = vi.fn().mockResolvedValue(trace);
     vi.doMock('@blazing/core/clients/viemClient', () => ({
-      viemClient: { debug_traceTransaction: debugTraceMock }
+      debugClient: { traceTransaction: debugTraceMock }
     }));
     vi.doMock('@blazing/core/utils/decodeSelector', () => ({ decodeSelector: vi.fn() }));
     vi.doMock('@blazing/core/utils/decodeRawArgsHex', () => ({ decodeRawArgsHex: vi.fn() }));

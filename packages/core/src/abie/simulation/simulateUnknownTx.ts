@@ -1,6 +1,6 @@
 // src/abie/simulation/simulateUnknownTx.ts
 
-import { viemClient } from "../../clients/viemClient.js";
+import { debugClient } from "../../clients/viemClient.js";
 import { decodeSelector } from "../../utils/decodeSelector.js";
 import { decodeRawArgsHex } from "../../utils/decodeRawArgsHex.js";
 import { fetchAbiSignature } from "../../utils/fetchAbiSignature.js";
@@ -38,16 +38,7 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Si
     const cached = traceCache.get(txHash);
     if (cached) return cached;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 7000);
-
-    const trace = await viemClient.debug_traceTransaction({
-      hash: txHash,
-      tracer: "callTracer",
-      signal: controller.signal
-    });
-
-    clearTimeout(timeout);
+    const trace = await debugClient.traceTransaction(txHash as `0x${string}`);
 
     const callData = trace?.input || trace?.calls?.[0]?.input;
 
