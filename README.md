@@ -122,3 +122,25 @@ METRICS_PORT=9108 pnpm --filter backend dev
 Sample Grafana dashboards and alerting rules are provided in the `observability/`
 directory. Import `observability/dashboard.json` through **Grafana → Dashboards → Import**
 and load alert rules from `observability/alerts.yml` via **Alerting → Import**.
+
+## 🚢 Release & Deployment
+
+Pushing a git tag triggers a release pipeline that runs type checks, linting,
+unit and integration tests, Foundry tests, Slither analysis, and a Docker
+build with image scanning. Successful runs publish a Docker image tagged with
+the pushed ref to GitHub Container Registry.
+
+### Tagging flow
+
+1. Create a semantic version tag:
+   ```sh
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+2. GitHub Actions builds and scans the image, then pushes
+   `ghcr.io/<OWNER>/t-op-arb-bot:<tag>`.
+
+### Deployment artifacts
+
+- Docker image: `ghcr.io/<OWNER>/t-op-arb-bot:<tag>`
+- CI logs and scan reports available in the tagged workflow run
