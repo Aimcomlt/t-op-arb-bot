@@ -12,3 +12,19 @@ export function compoundedMinOut(quotes: bigint[], slippageBps: number): bigint 
   }
   return amount;
 }
+
+/**
+ * Calculates the slippage in basis points between an expected quote and the
+ * actual amount received. Positive values indicate the actual amount was less
+ * than expected (worse execution), while negative values indicate a better
+ * than expected fill.
+ */
+export function analyzeSlippage(
+  expected: bigint | number,
+  actual: bigint | number,
+): number {
+  const exp = Number(expected);
+  const act = Number(actual);
+  if (exp === 0) return 0;
+  return ((exp - act) / exp) * 10_000;
+}
