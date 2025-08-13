@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fetchAbiSignature } from './fetchAbiSignature.js';
-import { clearSelectorCache } from './decodeSelector.js';
+import { clearAbiCache } from './decodeSelector.js';
 
 describe('fetchAbiSignature', () => {
   beforeEach(() => {
-    clearSelectorCache();
+    clearAbiCache();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });

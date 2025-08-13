@@ -1,4 +1,4 @@
-import { selectorAbiCache } from './selectorCache.js';
+import { selectorAbiCache } from './abiCache.js';
 import type { InterfaceAbi } from 'ethers';
 
 export async function fetchAbiSignature(selector: string): Promise<InterfaceAbi | null> {
