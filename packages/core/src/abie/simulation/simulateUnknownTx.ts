@@ -8,6 +8,7 @@ import type { TraceResult } from '@t-op-arb-bot/types';
 import { parseTrace } from "../../utils/traceParsers.js";
 import { traceCache } from "../../utils/traceCache.js";
 import { computeNetTokenFlow } from "../../utils/computeNetTokenFlow.js";
+import type { Address } from "viem";
 import { fetchTokenPrice } from "../../utils/fetchTokenPrice.js";
 import { computeSafeFlashLoanSize } from "../../utils/flashLoanSizing.js";
 import { fetchReserves } from "../../utils/fetchReserves.js";
@@ -71,7 +72,7 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Si
 
     // Flatten calls and compute net token flow
     const flat = flattenCalls(trace.calls || []);
-    const flows = computeNetTokenFlow(flat, trace.from);
+    const flows = computeNetTokenFlow(flat, trace.from as Address);
     const poolAddresses = Array.from(
       new Set(flat.map((c: any) => c.to).filter(Boolean))
     );
