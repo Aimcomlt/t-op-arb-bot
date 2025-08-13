@@ -44,15 +44,18 @@ export function strategyBuilder(
   const rv = Number(trace?.rv3Block ?? 0);
   if (rv > cfg.maxRv) return fail('rvClamp');
 
+  const safeLoanSize = BigInt(spread?.safeLoanSize ?? 0);
+
   let strategy: ArbStrategy = {
     shouldExecute: true,
     reason: null,
+    safeLoanSize,
     buildCalldata: async () => '0x',
     dryRun: async () => ({ status: 'success' } as ExecutionResult),
   };
 
   if (process.env.FEATURE_FLASHLOAN === 'true') {
-    strategy = withFlashloan(strategy);
+    strategy = withFlashloan(strategy, safeLoanSize);
   }
   if (process.env.FEATURE_PERMIT2 === 'true') {
     strategy = withPermit2(strategy);
