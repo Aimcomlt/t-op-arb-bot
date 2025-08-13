@@ -20,10 +20,13 @@ describe('fetchReserves', () => {
     const pools = ['0x1', '0x2'];
     const res1 = await fetchReserves(pools, 1n);
     expect(readContractsMock).toHaveBeenCalledTimes(1);
-    expect(res1['0x1']).toEqual([1n, 2n]);
+    expect(res1).toEqual({
+      '0x1': [1n, 2n],
+      '0x2': [3n, 4n],
+    });
 
     const res2 = await fetchReserves(pools, 1n);
     expect(readContractsMock).toHaveBeenCalledTimes(1); // cached
-    expect(res2['0x2']).toEqual([3n, 4n]);
+    expect(res2).toEqual(res1);
   });
 });
