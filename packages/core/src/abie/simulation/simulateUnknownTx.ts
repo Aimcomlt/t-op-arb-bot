@@ -10,6 +10,7 @@ import { traceCache } from "../../utils/traceCache.js";
 import { computeNetTokenFlow } from "../../utils/computeNetTokenFlow.js";
 import { fetchTokenPrice } from "../../utils/fetchTokenPrice.js";
 import { computeSafeFlashLoanSize } from "../../utils/flashLoanSizing.js";
+import { fetchReserves } from "../../utils/fetchReserves.js";
 
 interface SimulationInput {
   txHash: string;
@@ -71,6 +72,13 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Si
     // Flatten calls and compute net token flow
     const flat = flattenCalls(trace.calls || []);
     const flows = computeNetTokenFlow(flat, trace.from);
+    const poolAddresses = Array.from(
+      new Set(flat.map((c: any) => c.to).filter(Boolean))
+    );
+    const reserves = await fetchReserves(
+      poolAddresses,
+      BigInt((trace as any).blockNumber || 0)
+    );
 
     let profit: { token: string; amount: bigint } | null = null;
     let maxBase = 0;
@@ -85,15 +93,17 @@ export async function simulateUnknownTx({ txHash }: SimulationInput): Promise<Si
     }
 
     // Estimate a safe flash loan size based on constant-product math.
-    // Pool reserves are placeholders until integrated with real data.
+    const [buyAddr, sellAddr] = poolAddresses;
+    const buyRes = reserves[buyAddr] || [0n, 0n];
+    const sellRes = reserves[sellAddr] || [0n, 0n];
     const safeLoanSize = computeSafeFlashLoanSize({
-      buyPool: { reserveIn: 0n, reserveOut: 0n },
-      sellPool: { reserveIn: 0n, reserveOut: 0n },
+      buyPool: { reserveIn: buyRes[0], reserveOut: buyRes[1] },
+      sellPool: { reserveIn: sellRes[0], reserveOut: sellRes[1] },
       maxSlippageBps: 100,
     });
 
     // Wrap output for postExecutionHooks
-    const parsedTrace = parseTrace(trace, decoded);
+    const parsedTrace = await parseTrace(trace, decoded);
     const result: SimulationResult = { trace: parsedTrace, profit, safeLoanSize };
 
     traceCache.set(txHash, result);

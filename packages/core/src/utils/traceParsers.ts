@@ -12,12 +12,15 @@ interface ViemTraceCall {
   calls?: ViemTraceCall[];
 }
 
-export function parseTrace(trace: ViemTraceCall, decoded?: any): TraceResult {
+export async function parseTrace(
+  trace: ViemTraceCall,
+  decoded?: any
+): Promise<TraceResult> {
   const cache = new Map<string, any>();
   const rootSelector = trace.input?.slice(0, 10);
   if (decoded && rootSelector) cache.set(rootSelector, decoded);
 
-  function dfs(call: ViemTraceCall, depth: number): TraceResult {
+  async function dfs(call: ViemTraceCall, depth: number): Promise<TraceResult> {
     const selector = call.input?.slice(0, 10) || '';
     let info: any;
     if (cache.has(selector)) info = cache.get(selector);
@@ -40,7 +43,9 @@ export function parseTrace(trace: ViemTraceCall, decoded?: any): TraceResult {
     };
 
     if (call.calls && call.calls.length > 0) {
-      node.children = call.calls.map((c) => dfs(c, depth + 1));
+      node.children = await Promise.all(
+        call.calls.map((c) => dfs(c, depth + 1))
+      );
     }
 
     return node;
