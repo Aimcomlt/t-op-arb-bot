@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { scanDiscrepancy } from './scanDiscrepancy.js';
+import { scanDiscrepancy, type DexSnapshot } from './scanDiscrepancy.js';
 
 describe('scanDiscrepancy', () => {
   it('applies threshold and determines buy/sell legs', () => {
-    const snaps = [
+    const snaps: DexSnapshot[] = [
       { pairSymbol: 'ETH/USDC', dex: 'uni', reserves: [100, 100000] },
       { pairSymbol: 'ETH/USDC', dex: 'sushi', reserves: [100, 110000] },
     ];
@@ -21,7 +21,7 @@ describe('scanDiscrepancy', () => {
   });
 
   it('returns null when below threshold', () => {
-    const snaps = [
+    const snaps: DexSnapshot[] = [
       { pairSymbol: 'ETH/USDC', dex: 'uni', reserves: [100, 100000] },
       { pairSymbol: 'ETH/USDC', dex: 'sushi', reserves: [100, 100100] },
     ];
@@ -31,7 +31,7 @@ describe('scanDiscrepancy', () => {
   });
 
   it('filters out low liquidity pools', () => {
-    const snaps = [
+    const snaps: DexSnapshot[] = [
       { pairSymbol: 'ETH/USDC', dex: 'uni', reserves: [1, 10] },
       { pairSymbol: 'ETH/USDC', dex: 'sushi', reserves: [100, 110000] },
     ];
@@ -41,7 +41,7 @@ describe('scanDiscrepancy', () => {
   });
 
   it('processes 10k snapshots under 100ms', () => {
-    const snaps = Array.from({ length: 10000 }, (_, i) => ({
+    const snaps: DexSnapshot[] = Array.from({ length: 10000 }, (_, i) => ({
       pairSymbol: 'ETH/USDC',
       dex: `dex${i}`,
       reserves: [100 + i, 100000 + i],
