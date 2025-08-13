@@ -1,17 +1,23 @@
-const selectorAbiMap = new Map<string, { name: string }>();
+import { Interface, type InterfaceAbi } from 'ethers';
+import { selectorAbiCache } from './selectorCache.js';
 
-export function registerSelector(selector: string, abi: { name: string }) {
-  selectorAbiMap.set(selector, abi);
+export function registerSelector(selector: string, abi: InterfaceAbi) {
+  selectorAbiCache.set(selector, abi);
 }
 
 export function clearSelectorCache() {
-  selectorAbiMap.clear();
+  selectorAbiCache.clear();
 }
 
-export function decodeSelector(selector: string, callData: string, abi?: any): any {
-  const entry = abi || selectorAbiMap.get(selector);
+export function decodeSelector(selector: string, callData: string, abi?: InterfaceAbi): any {
+  const entry = abi || selectorAbiCache.get(selector);
   if (!entry) return null;
-  const args = callData.slice(10);
-  return { method: entry.name, args: [args] };
+  try {
+    const iface = new Interface(entry);
+    const fragment = iface.getFunction(selector);
+    const decoded = iface.decodeFunctionData(fragment, callData);
+    return { method: fragment.name, args: Array.from(decoded) };
+  } catch {
+    return null;
+  }
 }
-
