@@ -51,7 +51,7 @@ export async function postExecutionHooks({ strategy, result }: PostExecutionCont
   });
 
   // 3. Adaptive tuning — optionally adjust slippage based on result
-  if (status === "success") {
+  if (status === "success" && profitAchieved) {
     updateSlippageTolerance(strategy.pairSymbol, profitAchieved);
   }
 
