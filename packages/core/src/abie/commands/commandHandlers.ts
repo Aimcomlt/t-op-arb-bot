@@ -86,8 +86,10 @@ const COMMAND_REGISTRY: Record<ABIECommand, CommandHandler> = {
  * Utility snapshot for reporting how many clients are connected.
  */
 function WebSocketServerSnapshot() {
+  const clients = globalThis.wss?.clients;
+
   return {
     time: Date.now(),
-    connected: globalThis['wss']?.clients?.size ?? 'unknown'
+    connected: clients?.size ?? 'unknown'
   };
 }
