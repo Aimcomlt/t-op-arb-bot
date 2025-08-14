@@ -3,13 +3,15 @@
 
 export {};
 
+type WsLike = { clients?: Set<unknown> } | undefined;
+
 declare global {
   /**
    * Global WS server/client handle used by command handlers.
    * Prefer a typed singleton module; this is a minimal unblock for builds that reference `globalThis.wss`.
    */
   // eslint-disable-next-line no-var
-  var wss: unknown | undefined;
+  var wss: WsLike;
 }
 
 /**
