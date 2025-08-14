@@ -6,7 +6,7 @@
  */
 
 import { JsonRpcProvider, Contract } from 'ethers';
-import { CanonicalPair } from './pairFormatter.js';
+import type { CanonicalPair } from './pairFormatter.js';
 
 const ERC20_ABI = [
   { name: 'decimals', type: 'function', inputs: [], outputs: [{ type: 'uint8' }], stateMutability: 'view' },

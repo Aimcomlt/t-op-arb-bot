@@ -1,7 +1,7 @@
 import type { ArbStrategy } from '../types/strategyTypes.js';
 import { withFlashloan } from './mixins/withFlashloan.js';
 import { withPermit2 } from './mixins/withPermit2.js';
-import { ExecutionResult } from '../monitorExecution.js';
+import type { ExecutionResult } from '../monitorExecution.js';
 
 export interface GuardrailConfig {
   minProfitUSD: number;

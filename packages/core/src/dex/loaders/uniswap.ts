@@ -8,7 +8,7 @@
 import { JsonRpcProvider, Contract } from 'ethers';
 import { UNISWAP_FACTORY_ABI } from '../../abi-cache/FACTORY/uniswapV2Factory.js';
 import { UNISWAP_PAIR_ABI } from '../../abi-cache/PAIR/uniswapV2Pair.js';
-import { RawLP } from '../dexCollector.js';
+import type { RawLP } from '../dexCollector.js';
 
 const UNISWAP_FACTORY_ADDRESS = '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f'; // Uniswap V2 Factory
 const RPC_URL = process.env.INFURA_MAINNET || ''; // Use .env for config

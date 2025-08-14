@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { scanDiscrepancy, DexSnapshot } from '../core/scanDiscrepancy.js';
+import { scanDiscrepancy } from '../core/scanDiscrepancy.js';
+import type { DexSnapshot } from '../core/scanDiscrepancy.js';
 import * as hooks from '../abie/broadcaster/broadcastHooks.js';
 
 class OpportunityHeap {

@@ -1,7 +1,7 @@
 // src/hooks/postDiscrepancyHooks.ts
 
-import { SpreadComputationResult } from '../types/arbitrageTypes.js';
-import { SyncTrace } from '../types/SyncTrace.js';
+import type { SpreadComputationResult } from '../types/arbitrageTypes.js';
+import type { SyncTrace } from '../types/SyncTrace.js';
 import { emitArbOpportunity, emitSystemLog } from '../abie/broadcaster/broadcastHooks.js';
 
 /**
