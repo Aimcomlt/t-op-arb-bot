@@ -1,0 +1,217 @@
+diff --git a/packages/core/src/types/global.d.ts b/packages/core/src/types/global.d.ts
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/packages/core/src/types/global.d.ts
+@@ -0,0 +1,17 @@
++// Ambient global types for runtime singletons
++// Adjust types to your actual WebSocket server/client implementations.
++
++export {};
++
++declare global {
++  /**
++   * Global WS server/client handle used by command handlers.
++   * Prefer a typed singleton module; this is a minimal unblock for builds that reference `globalThis.wss`.
++   */
++  // eslint-disable-next-line no-var
++  var wss: unknown | undefined;
++}
++
++/**
++ * Keep this file included via `tsconfig.json` -> `include` or ensure `src` is included.
++ */
+diff --git a/packages/core/src/clients/viemClient.test.ts b/packages/core/src/clients/viemClient.test.ts
+index 2222222..3333333 100644
+--- a/packages/core/src/clients/viemClient.test.ts
++++ b/packages/core/src/clients/viemClient.test.ts
+@@ -1,6 +1,6 @@
+-import { makeClient } from './viemClient';
++import { makeClient } from './viemClient.js';
+ import { describe, it, expect } from 'vitest';
+ 
+ describe('viem client', () => {
+   it('creates client', () => {
+     const c = makeClient();
+diff --git a/packages/core/src/clients/debugTrace.ts b/packages/core/src/clients/debugTrace.ts
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/packages/core/src/clients/debugTrace.ts
+@@ -0,0 +1,48 @@
++// Lightweight wrapper for debug_traceTransaction to avoid viem's strict typing on client.request
++// Use only in dev/simulation paths.
++
++export type DebugTraceOptions = {
++  tracer?: string;
++  timeout?: string;
++  // add other fields supported by your node if needed
++};
++
++export async function debugTraceTransaction(
++  client: any, // viem PublicClient-like
++  txHash: `0x${string}`,
++  options: DebugTraceOptions = {}
++) {
++  const res = await (client as any).request({
++    method: 'debug_traceTransaction' as any,
++    params: [txHash, options] as any
++  });
++  return res as unknown;
++}
++
++export type ViemTraceCall = {
++  type?: string;
++  from?: `0x${string}`;
++  to?: `0x${string}`;
++  input?: `0x${string}`;
++  calls?: ViemTraceCall[];
++  [k: string]: unknown;
++};
++
++export function isTraceCall(x: unknown): x is ViemTraceCall {
++  return !!x && typeof x === 'object' && ('type' in (x as any) || 'input' in (x as any) || 'calls' in (x as any));
++}
+diff --git a/packages/core/src/abie/simulation/simulateUnknownTx.ts b/packages/core/src/abie/simulation/simulateUnknownTx.ts
+index 5555555..6666666 100644
+--- a/packages/core/src/abie/simulation/simulateUnknownTx.ts
++++ b/packages/core/src/abie/simulation/simulateUnknownTx.ts
+@@ -1,6 +1,12 @@
++import { debugTraceTransaction, isTraceCall, ViemTraceCall } from '@/clients/debugTrace.js';
++
+ // ... existing imports
+ 
+ export async function simulateUnknownTx(txHash: `0x${string}`, client: any) {
+-  const trace = await getTrace(txHash); // previous generic call
+-  const input = trace.input; // ERROR: not narrowed
+-  const nested = trace.calls.map(c => c.from);
++  const traceUnknown = await debugTraceTransaction(client, txHash, { timeout: '5s' });
++
++  if (!isTraceCall(traceUnknown)) {
++    throw new Error('Unexpected trace shape from debug_traceTransaction');
++  }
++  const trace: ViemTraceCall = traceUnknown;
++  const input = trace.input ?? '0x';
++  const nested = Array.isArray(trace.calls) ? trace.calls : [];
++  const froms = nested.map(c => c.from).filter(Boolean);
+   // ... rest of your logic using guarded values
+ }
+diff --git a/packages/core/src/hooks/postExecutionHooks.ts b/packages/core/src/hooks/postExecutionHooks.ts
+index 7777777..8888888 100644
+--- a/packages/core/src/hooks/postExecutionHooks.ts
++++ b/packages/core/src/hooks/postExecutionHooks.ts
+@@ -50,7 +50,11 @@ export async function postExecution(ctx: ExecContext) {
+-  recordExecution(ctx.txId); // txId: string | undefined -> TS2345
++  if (!ctx.txId) {
++    // optionally log and return early
++    return;
++  }
++  recordExecution(ctx.txId);
+   // ...
+ }
+diff --git a/packages/core/src/utils/abiCache.ts b/packages/core/src/utils/abiCache.ts
+index 9999999..aaaaaaa 100644
+--- a/packages/core/src/utils/abiCache.ts
++++ b/packages/core/src/utils/abiCache.ts
+@@ -35,8 +35,16 @@ export class AbiCache<K extends string, V> {
+-  get(key: K) {
+-    return this.map.get(key);
++  get(key: K | undefined) {
++    if (key === undefined) return undefined;
++    return this.map.get(key as K);
+   }
+ 
+-  set(key: K, val: V) {
+-    this.map.set(key, val);
++  set(key: K | undefined, val: V) {
++    if (key === undefined) return;
++    this.map.set(key as K, val);
+   }
+ }
+diff --git a/packages/core/src/utils/traceCache.ts b/packages/core/src/utils/traceCache.ts
+index bbbbbbb..ccccccc 100644
+--- a/packages/core/src/utils/traceCache.ts
++++ b/packages/core/src/utils/traceCache.ts
+@@ -35,8 +35,16 @@ export class TraceCache<K extends string, V> {
+-  get(key: K) {
+-    return this.map.get(key);
++  get(key: K | undefined) {
++    if (key === undefined) return undefined;
++    return this.map.get(key as K);
+   }
+ 
+-  set(key: K, val: V) {
+-    this.map.set(key, val);
++  set(key: K | undefined, val: V) {
++    if (key === undefined) return;
++    this.map.set(key as K, val);
+   }
+ }
+diff --git a/packages/core/src/utils/fetchAbiSignature.ts b/packages/core/src/utils/fetchAbiSignature.ts
+index ddddddd..eeeeeee 100644
+--- a/packages/core/src/utils/fetchAbiSignature.ts
++++ b/packages/core/src/utils/fetchAbiSignature.ts
+@@ -1,12 +1,30 @@
+ export async function fetchAbiSignature(selector: string) {
+-  const res = await fetch(`https://www.4byte.directory/api/v1/signatures/?hex_signature=${selector}`);
+-  const data = await res.json(); // inferred as {}
+-  const result = data.result || data.results[0].text_signature;
+-  return result;
++  const res = await fetch(`https://www.4byte.directory/api/v1/signatures/?hex_signature=${selector}`);
++  type FourByteResponse = {
++    count?: number;
++    next?: string | null;
++    previous?: string | null;
++    results?: Array<{ text_signature?: string }>;
++  };
++  const data = (await res.json()) as Partial<FourByteResponse>;
++  const first = data.results && data.results.length > 0 ? data.results[0] : undefined;
++  return first?.text_signature ?? null;
+ }
+diff --git a/packages/core/src/utils/parseTrace.ts b/packages/core/src/utils/parseTrace.ts
+index fffffff..1212121 100644
+--- a/packages/core/src/utils/parseTrace.ts
++++ b/packages/core/src/utils/parseTrace.ts
+@@ -1,6 +1,6 @@
+- import type { DecodedThing } from '@/types/decodedTypes.js';
++ import type { DecodedThing } from '@/types/decodedTypes.ts';
+  // If using NodeNext, ensure extension reflects source file or switch to moduleResolution=bundler
+  export function parseTrace(/* ... */) {
+    // ...
+  }
+diff --git a/packages/core/src/utils/fetchReserves.ts b/packages/core/src/utils/fetchReserves.ts
+index 1313131..1414141 100644
+--- a/packages/core/src/utils/fetchReserves.ts
++++ b/packages/core/src/utils/fetchReserves.ts
+@@ -1,18 +1,33 @@
+-// old: publicClient.readContracts({ contracts: [...] })
++// Use viem multicall/readContract in v2
+ import { publicClient } from '@/clients/viemClient.js';
+ import { PAIR_ABI } from '@/abis/pair.js';
+ 
+ export async function fetchReserves(pairAddress: `0x${string}`) {
+-  const [reserves] = await publicClient.readContracts({
+-    contracts: [
+-      {
+-        address: pairAddress,
+-        abi: PAIR_ABI,
+-        functionName: 'getReserves'
+-      }
+-    ]
+-  });
+-  return reserves;
++  const { results } = await publicClient.multicall({
++    contracts: [
++      {
++        address: pairAddress,
++        abi: PAIR_ABI,
++        functionName: 'getReserves'
++      }
++    ]
++  });
++  const entry = Array.isArray(results) ? results[0] : undefined;
++  if (!entry || entry.status !== 'success') {
++    throw new Error('Failed to read reserves');
++  }
++  return entry.result;
+ }

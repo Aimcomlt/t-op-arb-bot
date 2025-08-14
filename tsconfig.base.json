@@ -8,6 +8,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmitOnError": true,
-    "useDefineForClassFields": true
+    "useDefineForClassFields": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["packages/core/src/*"]
+    }
   }
 }

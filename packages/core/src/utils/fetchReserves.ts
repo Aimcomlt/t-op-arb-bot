@@ -1,43 +1,97 @@
-import { publicClient } from '../clients/viemClient.js';
-import { UNISWAP_PAIR_ABI } from '../abi-cache/PAIR/uniswapV2Pair.js';
+// packages/core/src/utils/fetchReserves.ts
+import { publicClient } from '@/clients/viemClient.js';
+import { PAIR_ABI } from '@/abis/pair.js';
 
-// Cache reserves keyed by block number then pool address
-const reserveCache = new Map<bigint, Map<string, [bigint, bigint]>>();
+// Cache reserves keyed by block key (bigint or 'latest') then pool address
+type BlockKey = bigint | 'latest';
 
+const reserveCache = new Map<BlockKey, Map<`0x${string}`, ResTuple>>();
+
+function getBlockKey(blockNumber?: bigint): BlockKey {
+  return blockNumber ?? 'latest';
+}
+
+/** Normalize a multicall entry into [reserve0, reserve1] */
+type ReservesTuple = readonly [bigint, bigint, bigint];           // [r0, r1, ts]
+type ReservesTupleLoose = readonly [bigint, bigint, number | bigint];
+type ResTuple = readonly [bigint, bigint];
+
+function isReservesTupleLoose(x: unknown): x is ReservesTupleLoose {
+  return (
+    Array.isArray(x) &&
+    x.length >= 3 &&
+    typeof x[0] === 'bigint' &&
+    typeof x[1] === 'bigint' &&
+    (typeof x[2] === 'bigint' || typeof x[2] === 'number')
+  );
+}
+
+function hasResultReservesTupleLoose(obj: unknown): obj is { result: ReservesTupleLoose } {
+  return (
+    !!obj &&
+    typeof obj === 'object' &&
+    'result' in (obj as any) &&
+    isReservesTupleLoose((obj as any).result)
+  );
+}
+
+/** Normalize a multicall entry into [reserve0, reserve1] */
+function toPairReserves(entry: unknown): ResTuple {
+  // Shape A: raw tuple (common when allowFailure=false in viem v2)
+  if (isReservesTupleLoose(entry)) {
+    // If you ever need the timestamp as bigint:
+    // const ts = typeof entry[2] === 'number' ? BigInt(entry[2]) : entry[2];
+    return [entry[0], entry[1]] as const;
+  }
+  // Shape B: object with { result: [r0, r1, ts] } (when allowFailure=true or wrappers)
+  if (hasResultReservesTupleLoose(entry)) {
+    const r = entry.result;
+    // const ts = typeof r[2] === 'number' ? BigInt(r[2]) : r[2];
+    return [r[0], r[1]] as const;
+  }
+  throw new Error('Unexpected multicall result shape for getReserves');
+}
+
+
+/**
+ * Batch fetch reserves for multiple UniswapV2/SushiV2-like pairs.
+ * - viem v2 compliant (uses multicall)
+ * - Optional blockNumber for deterministic reads (and caching)
+ * - Returns address -> [reserve0, reserve1]
+ */
 export async function fetchReserves(
-  pools: string[],
-  blockNumber: bigint
-): Promise<Record<string, [bigint, bigint]>> {
-  let blockCache = reserveCache.get(blockNumber);
+  pools: readonly `0x${string}`[],
+  opts: { blockNumber?: bigint } = {}
+): Promise<Record<`0x${string}`, ResTuple>> {
+  const blockKey = getBlockKey(opts.blockNumber);
+
+  let blockCache = reserveCache.get(blockKey);
   if (!blockCache) {
     blockCache = new Map();
-    reserveCache.set(blockNumber, blockCache);
+    reserveCache.set(blockKey, blockCache);
   }
 
+  // Only query pools not present in the cache for this block
   const missing = pools.filter((p) => !blockCache!.has(p));
   if (missing.length > 0) {
-    const results = await publicClient.readContracts({
-      allowFailure: false,
-      blockNumber,
+    const results = await publicClient.multicall({
+      blockNumber: opts.blockNumber,
+      allowFailure: false, // returns array entries (often raw tuples)
       contracts: missing.map((address) => ({
         address,
-        abi: UNISWAP_PAIR_ABI,
+        abi: PAIR_ABI,
         functionName: 'getReserves' as const,
       })),
     });
-    missing.forEach((addr, i) => {
-      const item = results[i] as
-        | readonly [bigint, bigint, bigint]
-        | readonly [readonly [bigint, bigint, bigint], unknown, unknown];
-      const reserves = Array.isArray(item[0])
-        ? (item[0] as readonly [bigint, bigint, bigint])
-        : (item as readonly [bigint, bigint, bigint]);
-      const [r0, r1] = reserves;
-      blockCache!.set(addr, [r0, r1]);
-    });
+
+    for (let i = 0; i < missing.length; i++) {
+      const reserves = toPairReserves(results[i]);
+      blockCache!.set(missing[i], reserves);
+    }
   }
 
-  const out: Record<string, [bigint, bigint]> = {};
+  // Build output map from cache
+  const out: Record<`0x${string}`, ResTuple> = {} as any;
   for (const addr of pools) {
     const item = blockCache!.get(addr);
     if (item) out[addr] = item;
@@ -45,6 +99,7 @@ export async function fetchReserves(
   return out;
 }
 
+/** Clear the entire reserve cache (all blocks). */
 export function clearReserveCache() {
   reserveCache.clear();
 }
