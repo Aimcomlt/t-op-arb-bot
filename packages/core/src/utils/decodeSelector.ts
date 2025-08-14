@@ -13,6 +13,9 @@ export function decodeSelector(selector: string, callData: string, abi?: Interfa
   try {
     const iface = new Interface(entry);
     const fragment = iface.getFunction(selector);
+    if (!fragment) {
+      return null;
+    }
     const decoded = iface.decodeFunctionData(fragment, callData);
     return { method: fragment.name, args: Array.from(decoded) };
   } catch {
