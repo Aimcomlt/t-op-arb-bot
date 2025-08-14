@@ -1,6 +1,21 @@
 import { selectorAbiCache } from './abiCache.js';
 import type { InterfaceAbi } from 'ethers';
 
+interface OpenChainLookupResponse {
+  result?: {
+    function?: Record<string, Array<{ function?: {
+      name?: string;
+      inputs?: unknown[];
+      outputs?: unknown[];
+      stateMutability?: string;
+    } }>>;
+  };
+}
+
+interface FourByteResponse {
+  results?: Array<{ text_signature?: string }>;
+}
+
 export async function fetchAbiSignature(selector: string): Promise<InterfaceAbi | null> {
   const cached = selectorAbiCache.get(selector);
   if (cached) return cached;
@@ -9,8 +24,8 @@ export async function fetchAbiSignature(selector: string): Promise<InterfaceAbi 
   try {
     const res = await fetch(`https://api.openchain.xyz/signature-database/v1/lookup?function=${selector}`);
     if (res.ok) {
-      const data = await res.json();
-      const entry = data?.result?.function?.[selector]?.[0]?.function;
+      const data: OpenChainLookupResponse = await res.json();
+      const entry = data.result?.function?.[selector]?.[0]?.function;
       if (entry && entry.name) {
         const abiItem = {
           type: 'function',
@@ -30,8 +45,8 @@ export async function fetchAbiSignature(selector: string): Promise<InterfaceAbi 
   try {
     const res = await fetch(`https://www.4byte.directory/api/v1/signatures/?hex_signature=${selector}`);
     if (res.ok) {
-      const data = await res.json();
-      const text = data?.results?.[0]?.text_signature;
+      const data: FourByteResponse = await res.json();
+      const text = data.results?.[0]?.text_signature;
       if (text) {
         const abi: InterfaceAbi = [`function ${text}`];
         selectorAbiCache.set(selector, abi);
