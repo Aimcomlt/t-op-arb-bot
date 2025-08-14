@@ -26,17 +26,19 @@ class LRUCache<K, V> {
     } catch {}
   }
 
-  get(key: K): V | undefined {
+  get(key: K | undefined): V | undefined {
+    if (key === undefined) return undefined;
     if (!this.cache.has(key)) return undefined;
-    const val = this.cache.get(key)!;
-    this.cache.delete(key);
-    this.cache.set(key, val);
+    const val = this.cache.get(key as K)!;
+    this.cache.delete(key as K);
+    this.cache.set(key as K, val);
     return val;
   }
 
-  set(key: K, value: V) {
-    if (this.cache.has(key)) this.cache.delete(key);
-    this.cache.set(key, value);
+  set(key: K | undefined, value: V) {
+    if (key === undefined) return;
+    if (this.cache.has(key as K)) this.cache.delete(key as K);
+    this.cache.set(key as K, value);
     if (this.cache.size > this.limit) {
       const first = this.cache.keys().next().value;
       this.cache.delete(first);
