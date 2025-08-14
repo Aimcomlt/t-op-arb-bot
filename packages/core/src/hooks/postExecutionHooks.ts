@@ -1,7 +1,7 @@
 // src/hooks/postExecutionHooks.ts
 
-import { ExecutionResult } from "../monitorExecution.js";
-import { ArbStrategy } from "../types/strategyTypes.js";
+import type { ExecutionResult } from "../monitorExecution.js";
+import type { ArbStrategy } from "../types/strategyTypes.js";
 
 import {
   emitExecutionResult,

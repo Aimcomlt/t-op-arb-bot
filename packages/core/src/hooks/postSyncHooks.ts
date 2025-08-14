@@ -7,9 +7,9 @@ import { profitGuard } from '../utils/profitGuard.js';
 import { postExecutionHooks } from './postExecutionHooks.js';
 
 import { emitSyncEvent, emitArbOpportunity } from '../abie/broadcaster/broadcastHooks.js';
-import { SyncEventLog } from '../types/SyncTrace.js';
-import { ArbStrategy } from '../types/strategyTypes.js';
-import { ExecutionResult } from '../monitorExecution.js';
+import type { SyncEventLog } from '../types/SyncTrace.js';
+import type { ArbStrategy } from '../types/strategyTypes.js';
+import type { ExecutionResult } from '../monitorExecution.js';
 
 /**
  * Invoked after an LP Sync event is received.

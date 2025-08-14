@@ -1,5 +1,5 @@
 import { computeSpread } from '../utils/computeSpread.js';
-import { SpreadComputationResult } from '../types/arbitrageTypes.js';
+import type { SpreadComputationResult } from '../types/arbitrageTypes.js';
 
 export interface DexSnapshot {
   pairSymbol: string;
