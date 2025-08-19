@@ -74,7 +74,7 @@ describe('wsServer heartbeat', () => {
   it('disconnects clients that miss heartbeats', async () => {
     startWsServer(0, { pingIntervalMs: 50 });
     const port = getPort();
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, undefined, {
       headers: { Authorization: 'Bearer secret' },
     });
     await new Promise((r) => ws.on('open', r));
@@ -91,7 +91,7 @@ describe('wsServer backpressure', () => {
   it('drops messages when queues are full', async () => {
     startWsServer(0, { bucketCapacity: 1, refillPerSec: 0, queueCap: 2, pingIntervalMs: 10_000 });
     const port = getPort();
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, undefined, {
       headers: { Authorization: 'Bearer secret' },
     });
     await new Promise((r) => ws.on('open', r));

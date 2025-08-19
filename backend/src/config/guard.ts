@@ -1,9 +1,9 @@
 export const guardConfig = {
-  tradablePairs: ['WETH/USDC'],
+  tradablePairs: ['WETH/USDC'] as string[],
   maxGas: 2_000_000n,
   maxSlippageBps: 100, // 1%
   profitFloor: 0.01, // minimum profit in base units
-} as const;
+};
 
 export interface SimulationResult {
   pair: string;

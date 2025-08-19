@@ -1,6 +1,15 @@
+// frontend/src/hooks/useWebSocket.ts
 import { useEffect, useRef } from 'react';
 import { tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 import { useArbStore } from '../useArbStore';
+
+type AuthMode = 'query' | 'subprotocol' | 'none';
+
+function maskToken(t?: string | null) {
+  if (!t) return '';
+  if (t.length <= 10) return '•••';
+  return `${t.slice(0, 6)}…${t.slice(-4)}`;
+}
 
 export function useWebSocket(enabled = true) {
   const addPair = useArbStore((s) => s.addPair ?? s.ingest);
@@ -9,16 +18,51 @@ export function useWebSocket(enabled = true) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(false);
+  const attemptRef = useRef(0);
+
+  // ---- Resolve base URL and token from multiple sources ----
+  const rawBase = (import.meta.env.VITE_WS_URL as string | undefined) ?? '';
+  const envToken =
+    (import.meta.env.VITE_WS_TOKEN as string | undefined) ??
+    (import.meta.env.VITE_WS_AUTH_TOKEN as string | undefined);
+
+  // Pick up token from several fallback locations (useful in dev)
+  const resolvedToken = (() => {
+    try {
+      const fromBase = rawBase ? new URL(rawBase).searchParams.get('token') : null;
+      const fromPage =
+        typeof window !== 'undefined'
+          ? new URL(window.location.href).searchParams.get('wsToken') ??
+            new URL(window.location.href).searchParams.get('token')
+          : null;
+      const fromStorage =
+        typeof window !== 'undefined'
+          ? localStorage.getItem('WS_TOKEN') ??
+            localStorage.getItem('VITE_WS_TOKEN') ??
+            sessionStorage.getItem('WS_TOKEN')
+          : null;
+
+      return envToken ?? fromBase ?? fromPage ?? fromStorage ?? undefined;
+    } catch {
+      return envToken ?? undefined;
+    }
+  })();
+
+  const forcedMode = import.meta.env.VITE_WS_AUTH_MODE as AuthMode | undefined;
+  const authModeRef = useRef<AuthMode>(
+    forcedMode ?? (resolvedToken ? 'query' : 'none')
+  );
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // hard cleanup
+
       if (reconnectTimerRef.current) {
         window.clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
+
       const ws = wsRef.current;
       wsRef.current = null;
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
@@ -33,24 +77,97 @@ export function useWebSocket(enabled = true) {
       return;
     }
 
-    const url = import.meta.env.VITE_WS_URL as string | undefined;
-    if (!url) {
-      console.warn('VITE_WS_URL is not set');
+    if (!rawBase) {
+      console.warn('[WS] VITE_WS_URL is not set');
       return;
     }
-    if (wsRef.current) return; // already connected/connecting
 
-    let attempt = 0;
+    if (wsRef.current) return; // already connecting/connected
+
+    const openSocket = (mode: AuthMode): WebSocket => {
+      const urlObj = new URL(rawBase);
+      if (mode === 'query' && resolvedToken) {
+        // Don't duplicate token if already present in the base URL
+        if (!urlObj.searchParams.get('token')) {
+          urlObj.searchParams.set('token', resolvedToken);
+        }
+        return new WebSocket(urlObj.toString());
+      }
+      if (mode === 'subprotocol' && resolvedToken) {
+        // Browser cannot set Authorization header; subprotocol is the alternative
+        return new WebSocket(urlObj.toString(), ['bearer', resolvedToken]);
+      }
+      return new WebSocket(urlObj.toString());
+    };
+
+    const scheduleReconnect = (immediate = false) => {
+      if (!mountedRef.current) return;
+
+      attemptRef.current += 1;
+      const backoff = Math.min(1000 * 2 ** attemptRef.current, 15_000);
+      const delay = immediate ? 0 : backoff;
+
+      if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = window.setTimeout(connect, delay);
+    };
+
+    const maybeToggleAuthMode = () => {
+      if (forcedMode) return; // honor explicit mode
+      if (!resolvedToken) return;
+
+      authModeRef.current =
+        authModeRef.current === 'query'
+          ? 'subprotocol'
+          : authModeRef.current === 'subprotocol'
+          ? 'query'
+          : 'query';
+    };
 
     const connect = () => {
       if (!mountedRef.current) return;
 
+      const mode = authModeRef.current;
+
+      // If an auth mode requiring a token is selected but we have no token, bail (avoid spam).
+      if ((mode === 'query' || mode === 'subprotocol') && !resolvedToken) {
+        console.warn(
+          `[WS] ${mode} auth selected but no token found. Set VITE_WS_TOKEN or include ?token= in VITE_WS_URL (.env.local).`
+        );
+        setStatus('disconnected');
+        return;
+      }
+
       setStatus('connecting');
-      const ws = new WebSocket(url);
+
+      let ws: WebSocket | null = null;
+      try {
+        ws = openSocket(mode);
+      } catch (err) {
+        console.error('[WS] constructor failed:', err);
+        maybeToggleAuthMode();
+        scheduleReconnect();
+        return;
+      }
+
       wsRef.current = ws;
 
+      // Helpful connection diagnostics
+      try {
+        const u = new URL(rawBase);
+        const willSendQuery =
+          mode === 'query' &&
+          (!!u.searchParams.get('token') || !!resolvedToken);
+        console.info('[WS] connecting', {
+          url: willSendQuery && resolvedToken ? `${u.origin}${u.pathname}?token=${maskToken(resolvedToken)}` : u.toString(),
+          mode,
+          token: resolvedToken ? maskToken(resolvedToken) : '(none)',
+          forcedMode: forcedMode ?? '(auto)',
+          attempt: attemptRef.current,
+        });
+      } catch {}
+
       ws.onopen = () => {
-        attempt = 0;
+        attemptRef.current = 0;
         if (!mountedRef.current) return;
         setStatus('connected');
       };
@@ -59,36 +176,35 @@ export function useWebSocket(enabled = true) {
         if (!mountedRef.current) return;
         try {
           const parsed = tokenMetaUpdateZ.parse(JSON.parse(event.data));
-          // Add to store (pure action; no state writes during render)
           addPair({ ...parsed.payload, at: parsed.at });
-        } catch (err) {
-          // invalid or non-matching message; ignore
-          // console.debug('WS parse error', err);
+        } catch {
+          // ignore non-matching payloads
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
+        console.warn('[WS] closed', { code: e.code, reason: e.reason });
         if (!mountedRef.current) return;
+
         setStatus('disconnected');
         wsRef.current = null;
 
-        // exponential backoff (cap at 15s)
-        attempt += 1;
-        const delay = Math.min(1000 * 2 ** attempt, 15000);
-        if (reconnectTimerRef.current) {
-          window.clearTimeout(reconnectTimerRef.current);
+        // Handshake/auth rejections in browsers are often surfaced as 1006 (no clean close).
+        if (e.code === 1006 || e.code === 1008 || /unauth|auth|policy|401/i.test(e.reason)) {
+          maybeToggleAuthMode();
+          scheduleReconnect(true); // immediate retry with alternate mode
+        } else {
+          scheduleReconnect();
         }
-        reconnectTimerRef.current = window.setTimeout(connect, delay);
       };
 
       ws.onerror = () => {
-        // onclose will follow; status handled there
+        // onclose will follow; handled there
       };
     };
 
     connect();
 
-    // effect cleanup (for URL change, though URL is typically constant)
     return () => {
       const ws = wsRef.current;
       wsRef.current = null;
@@ -100,7 +216,7 @@ export function useWebSocket(enabled = true) {
         reconnectTimerRef.current = null;
       }
     };
-    // `addPair` and `setStatus` from Zustand are stable; safe to omit from deps
+    // Zustand selectors are stable; safe to omit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 }

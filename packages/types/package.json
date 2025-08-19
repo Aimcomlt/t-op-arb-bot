@@ -1,9 +1,9 @@
 {
   "name": "@t-op-arb-bot/types",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
@@ -14,15 +14,14 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -b",
     "clean": "rimraf dist",
-    "test": "tsc -p tsconfig.json --noEmit"
+    "test": "tsc -b --pretty"
   },
   "dependencies": {
-    "zod": "^4.0.17"
+    "zod": "^3.25.8"
   },
   "devDependencies": {
-    "typescript": "^5.5.4",
     "rimraf": "^6.0.1"
   }
 }

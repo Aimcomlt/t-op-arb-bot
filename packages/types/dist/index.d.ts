@@ -141,3 +141,4 @@ export declare const tokenMetaUpdateZ: z.ZodObject<{
 export type TokenMetaUpdate = z.infer<typeof tokenMetaUpdateZ>;
 export type TokenMetaPayload = z.infer<typeof tokenMetaPayloadZ>;
 export * from './traceTypes.js';
+//# sourceMappingURL=index.d.ts.map

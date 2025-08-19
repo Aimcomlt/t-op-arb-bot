@@ -17,19 +17,23 @@ beforeEach(() => {
 
 describe('postExecutionHooks', () => {
   it('handles successful execution and logs trace', async () => {
-    const { postExecutionHooks } = await import('@blazing/core/hooks/postExecutionHooks');
-    const { logToDatabase } = await import('@blazing/core/utils/dbLogger');
-    const hooks = await import('@blazing/core/abie/broadcaster/broadcastHooks');
-    const { updateSlippageTolerance } = await import('@blazing/core/config/arbitrageConfig');
-    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
-    const { formatTraceForLogs } = await import('@blazing/core/utils/formatTraceForLogs');
+    const postExecutionHooks = await import('@blazing/core/hooks/postExecutionHooks.js');
+    const { logToDatabase } = await import('@blazing/core/utils/dbLogger.js');
+    const hooks = await import('@blazing/core/abie/broadcaster/broadcastHooks.js');
+    const { updateSlippageTolerance } = await import('@blazing/core/config/arbitrageConfig.js');
+    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx.js');
+    const { formatTraceForLogs } = await import('@blazing/core/utils/formatTraceForLogs.js');
 
     (simulateUnknownTx as any).mockResolvedValue({ trace: {}, profit: null });
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    await postExecutionHooks({
-      strategy: { pairSymbol: 'ETH/USDT', route: ['A', 'B'] },
-      result: { txHash: '0xabc', status: 'success', profitAchieved: '1', gasUsed: '21000' }
+    await postExecutionHooks.onExecutionSuccess({
+      txHash: '0xabc',
+      pair: 'ETH/USDT',
+      route: ['A', 'B'],
+      profit: '1',
+      gasUsed: '21000',
+      trace: {},
     });
 
     expect(logToDatabase).toHaveBeenCalled();
@@ -49,22 +53,35 @@ describe('postExecutionHooks', () => {
   });
 
   it('handles reverted execution and emits alert', async () => {
-    const { postExecutionHooks } = await import('@blazing/core/hooks/postExecutionHooks');
-    const hooks = await import('@blazing/core/abie/broadcaster/broadcastHooks');
-    const { updateSlippageTolerance } = await import('@blazing/core/config/arbitrageConfig');
-    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx');
+    const postExecutionHooks = await import('@blazing/core/hooks/postExecutionHooks.js');
+    const hooks = await import('@blazing/core/abie/broadcaster/broadcastHooks.js');
+    const { updateSlippageTolerance } = await import('@blazing/core/config/arbitrageConfig.js');
+    const { simulateUnknownTx } = await import('@blazing/core/abie/simulation/simulateUnknownTx.js');
+
+    const args = {
+      strategy: {
+        pairSymbol: 'ETH/USDT',
+        route: ['A', 'B'],
+        shouldExecute: true,
+        reason: 'test',
+        buildCalldata: vi.fn(),
+        dryRun: vi.fn()
+      },
+      result: { txHash: '0xabc', status: 'reverted', gasUsed: '0' }
+    };
 
     (simulateUnknownTx as any).mockResolvedValue(null);
 
-    await postExecutionHooks({
-      strategy: { pairSymbol: 'ETH/USDT', route: ['A', 'B'] },
-      result: { txHash: '0xabc', status: 'reverted', gasUsed: '0' }
+    await postExecutionHooks.onExecutionRevert({
+      pair: 'ETH/USDT',
+      route: ['A', 'B'],
+      reason: 'Trade reverted'
     });
 
     expect(updateSlippageTolerance).not.toHaveBeenCalled();
     expect(hooks.emitRevertAlert).toHaveBeenCalledWith({
       reason: 'Trade reverted',
-      context: { pair: 'ETH/USDT', route: ['A', 'B'] }
+      context: { pair: 'ETH/USDT', "route": "A -> B", }
     });
   });
 });

@@ -1,0 +1,1 @@
+{"version":3,"file":"monitorExecution.d.ts","sourceRoot":"","sources":["../src/monitorExecution.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,eAAe;IAC9B,MAAM,CAAC,EAAE,MAAM,CAAC;IAChB,MAAM,EAAE,SAAS,GAAG,UAAU,CAAC;IAC/B,cAAc,CAAC,EAAE,MAAM,CAAC;IACxB,OAAO,CAAC,EAAE,MAAM,CAAC;CAClB"}

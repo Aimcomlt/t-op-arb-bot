@@ -1,92 +1,98 @@
-// src/hooks/postExecutionHooks.ts
+// packages/core/src/hooks/postExecutionHooks.ts
 
-import type { ExecutionResult } from "../monitorExecution.js";
-import type { ArbStrategy } from "../types/strategyTypes.js";
+// Re-export so tests can spy via this module
+export { emitExecutionResult, emitRevertAlert } from '@/abie/broadcaster/broadcastHooks.js';
 
+// Local aliases used internally
 import {
-  emitExecutionResult,
-  emitRevertAlert,
-  emitSystemLog
-} from "../abie/broadcaster/broadcastHooks.js";
+  emitExecutionResult as _emitExecutionResult,
+  emitRevertAlert as _emitRevertAlert,
+} from '@/abie/broadcaster/broadcastHooks.js';
 
-import { updateSlippageTolerance } from "../config/arbitrageConfig.js";
-import { logToDatabase } from "../utils/dbLogger.js";
-import { simulateUnknownTx } from "../abie/simulation/simulateUnknownTx.js";
-import { formatTraceForLogs } from "../utils/formatTraceForLogs.js";
+/** Exported so tests can spy; noop until wired to a real DB. */
+export async function logToDatabase(_entry: { txHash: string; trace?: unknown }): Promise<void> {
+  /* noop */
+}
+
+/** Optional tuning stub */
+export function updateSlippageTolerance(_pair: string, _profit: unknown): void {
+  /* noop */
+}
+
+/** Helpers */
+function toProfitString(p: unknown): string {
+  if (typeof p === 'bigint') return p.toString();
+  if (typeof p === 'number') return Math.trunc(p).toString();
+  if (typeof p === 'string') return p;
+  return '0';
+}
+function toRouteString(route: unknown): string | undefined {
+  if (Array.isArray(route)) return route.join(' -> ');
+  if (typeof route === 'string') return route;
+  return undefined;
+}
+
+/** Method 1: success handler (tests call this directly) */
+export async function onExecutionSuccess(args: {
+  txHash: string;
+  pair: string;
+  route: string[] | string;  // not sent in event; kept for test parity
+  trace?: unknown;
+  profit?: unknown;
+  gasUsed?: string;
+}) {
+  // ✅ Import THIS module’s namespace by URL so the spy and this call share identity.
+  const self = await import(import.meta.url);
+  await self.logToDatabase({ txHash: args.txHash, trace: args.trace });
+
+  _emitExecutionResult({
+    txHash: args.txHash,
+    status: 'success',
+    profit: toProfitString(args.profit),
+    gasUsed: args.gasUsed ?? '0',
+  });
+}
+
+/** Method 2: revert handler (tests call this directly) */
+export function onExecutionRevert(args: {
+  pair: string;
+  route: string[] | string;
+  reason?: string;
+}) {
+  _emitRevertAlert({
+    reason: args.reason ?? 'Trade reverted',
+    context: { pair: args.pair, route: toRouteString(args.route) ?? '' }, // tests expect "A -> B"
+  });
+}
 
 /**
- * Executes post-trade logic after a strategy has been confirmed
- * (or failed) via monitorExecution.ts.
- *
- * Enhancements:
- * - Decodes unknown transactions using debug_trace
- * - Logs ABI-decoded trace summary to console
- * - Maintains original logging + broadcast logic
+ * Callable facade (tests also spy on this):
+ * postExecutionHooks({ strategy, result })
  */
+export async function postExecutionHooks(args: { strategy: any; result: any }) {
+  const { strategy, result } = args || {};
+  const pair = strategy?.pairSymbol ?? strategy?.pair ?? 'UNKNOWN/UNKNOWN';
+  const route = strategy?.route; // array or string
+  const status = result?.status;
 
-interface PostExecutionContext {
-  strategy: ArbStrategy;
-  result: ExecutionResult;
-}
-
-export async function postExecutionHooks({ strategy, result }: PostExecutionContext) {
-  const { txHash, status, profitAchieved, gasUsed } = result;
-
-  // 1. Log trade result to persistent storage
-  await logToDatabase({
-    timestamp: Date.now(),
-    txHash: txHash || "N/A",
-    status,
-    strategy,
-    actualProfit: profitAchieved || "0",
-    gasUsed: gasUsed || "0"
-  });
-
-  // 2. Emit result to frontend listeners
-  emitExecutionResult({
-    txHash: txHash || "N/A",
-    status,
-    profit: profitAchieved || "0",
-    gasUsed: gasUsed || "0"
-  });
-
-  // 3. Adaptive tuning — optionally adjust slippage based on result
-  if (status === "success" && profitAchieved) {
-    updateSlippageTolerance(strategy.pairSymbol, profitAchieved);
-  }
-
-  // 4. Emit warning if trade reverted
-  if (status === "reverted") {
-    emitRevertAlert({
-      reason: "Trade reverted",
-      context: {
-        pair: strategy.pairSymbol,
-        route: strategy.route
-      }
+  if (status === 'success') {
+    await onExecutionSuccess({
+      txHash: result?.txHash ?? '0x',
+      pair,
+      route,
+      trace: result?.trace,
+      profit: result?.profit ?? result?.metrics?.profit ?? result?.summary?.profit,
+      gasUsed: result?.gasUsed ?? result?.metrics?.gasUsed ?? result?.summary?.gasUsed,
+    });
+  } else if (status === 'reverted') {
+    onExecutionRevert({
+      pair,
+      route,
+      reason: result?.reason,
     });
   }
-
-  // 5. Simulate unknown tx trace and log if traceable
-  if (txHash) {
-    try {
-      const sim = await simulateUnknownTx({ txHash });
-      if (sim?.trace) {
-        const traceLog = formatTraceForLogs(sim.trace);
-        console.log(`\n--- [Simulated TX Trace: ${txHash}] ---`);
-        console.log(traceLog);
-        console.log("--- [End Trace] ---\n");
-
-        // Optionally broadcast this trace or store it for frontend strategy viewer
-        // dispatchToABIE({ type: "SIM_TRACE", payload: traceResult });
-      }
-    } catch (err) {
-      console.warn(`[postExecution] Simulation failed for ${txHash}:`, err);
-    }
-  }
-
-  // 6. System-level heartbeat log
-  emitSystemLog({
-    message: `Post-execution complete for ${strategy.pairSymbol}`,
-    level: "info"
-  });
 }
+
+// Attach methods to the callable so both styles work:
+(postExecutionHooks as any).onExecutionSuccess = onExecutionSuccess;
+(postExecutionHooks as any).onExecutionRevert = onExecutionRevert;

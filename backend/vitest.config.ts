@@ -11,4 +11,17 @@ export default defineConfig({
       '@t-op-arb-bot/types': path.resolve(__dirname, '../packages/types/src'),
     },
   },
+    server: {
+    proxy: {
+      '/stream': {
+        target: 'ws://localhost:8081',
+        ws: true,
+        configure(proxy) {
+          proxy.on('proxyReqWs', (proxyReq) => {
+            proxyReq.setHeader('Authorization', `Bearer ${process.env.WS_AUTH_TOKEN}`);
+          });
+        },
+      },
+    },
+  },
 });

@@ -6,6 +6,8 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "composite": true,
+    "declaration": true,
+    "declarationMap": true,
     "baseUrl": ".",
     "paths": {
       "@backend/*": ["src/*"],
@@ -17,6 +19,7 @@
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"],
   "references": [
+    { "path": "../packages/types" },
     { "path": "../packages/core" }
   ]
 }

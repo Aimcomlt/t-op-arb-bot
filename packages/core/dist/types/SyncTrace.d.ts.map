@@ -1,0 +1,1 @@
+{"version":3,"file":"SyncTrace.d.ts","sourceRoot":"","sources":["../../src/types/SyncTrace.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,SAAS;IACxB,UAAU,EAAE,MAAM,CAAC;IACnB,GAAG,EAAE,MAAM,CAAC;IACZ,aAAa,EAAE,CAAC,MAAM,EAAE,MAAM,CAAC,CAAC;IAChC,SAAS,EAAE,MAAM,CAAC;CACnB;AAED,MAAM,WAAW,YAAY;IAC3B,CAAC,GAAG,EAAE,MAAM,GAAG,GAAG,CAAC;CACpB"}

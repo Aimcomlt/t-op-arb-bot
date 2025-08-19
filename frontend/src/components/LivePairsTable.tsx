@@ -15,10 +15,8 @@ interface Row {
 }
 
 export default function LivePairsTable() {
-  const { pairs, status } = useArbStore(
-    (s) => ({ pairs: s.pairs, status: s.status }),
-    shallow,
-  );
+  const pairs  = useArbStore((s) => s.pairs);
+  const status = useArbStore((s) => s.status);
   const { isConnected } = useAccount();
   const [minLiquidity, setMinLiquidity] = useState(0);
   const [minSpreadBps, setMinSpreadBps] = useState(0);

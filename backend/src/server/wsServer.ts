@@ -1,5 +1,6 @@
+// backend/src/server/wsServer.ts
 import WebSocket, { WebSocketServer } from 'ws';
-
+import type { IncomingMessage, OutgoingHttpHeaders } from 'http';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import {
@@ -9,6 +10,7 @@ import {
   wsQueueDepthGauge,
 } from '../monitoring/metrics.js';
 import { TokenMetaUpdate, tokenMetaUpdateZ } from '@t-op-arb-bot/types';
+
 
 // Derive types from runtime values (robust across TS/ESM configs)
 type WSClient = InstanceType<typeof WebSocket>;
@@ -43,6 +45,68 @@ const defaultOpts = {
 
 let opts: Required<WsServerOptions> = { ...defaultOpts };
 
+/**
+ * Extract a token from any of the supported auth transports:
+ * - Authorization header: "Bearer <token>"
+ * - Query parameter:      /stream?token=<token>
+ * - Subprotocols:         new WebSocket(url, ['bearer', '<token>'])
+ *
+ * Returns the token (if found), how it was provided, and (optionally)
+ * a response header to echo the selected subprotocol.
+ */
+function extractTokenFromUpgrade(info: any): {
+  token: string | null;
+  via: 'header' | 'query' | 'subprotocol' | null;
+  responseHeaders?: Record<string, string>;
+} {
+  try {
+    // 1) Authorization header
+    const auth = (info.req.headers?.['authorization'] as string | undefined) ?? '';
+    const parts = auth.split(' ');
+    if (parts.length === 2 && /^bearer$/i.test(parts[0])) {
+      return { token: parts[1], via: 'header' };
+    }
+
+    // 2) Query param
+    const rawUrl = (info.req.url as string) || '/';
+    const url = new URL(rawUrl, 'http://localhost'); // base required only for parsing
+    const qpToken = url.searchParams.get('token');
+    if (qpToken) {
+      return { token: qpToken, via: 'query' };
+    }
+
+    // 3) Subprotocols
+    const protoHeader = (info.req.headers?.['sec-websocket-protocol'] as string | undefined) ?? '';
+    const requested = protoHeader
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (requested.length > 0) {
+      // Accept if either:
+      //   - token is directly one of the protocols, OR
+      //   - 'bearer' is present AND token is also present as a separate protocol.
+      const hasBearer = requested.includes('bearer');
+      const tokenProto = requested.find((p) => p === env.WS_AUTH_TOKEN) || null;
+
+      if (tokenProto) {
+        // Choose a protocol to echo back. If the client offered 'bearer', echo that;
+        // otherwise echo the token itself (must echo one of the offered values).
+        const selected = hasBearer ? 'bearer' : tokenProto;
+        return {
+          token: tokenProto,
+          via: 'subprotocol',
+          responseHeaders: { 'Sec-WebSocket-Protocol': selected },
+        };
+      }
+    }
+
+    return { token: null, via: null };
+  } catch {
+    return { token: null, via: null };
+  }
+}
+
 export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
   if (wss) return controlSurface;
 
@@ -50,12 +114,49 @@ export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
 
   wss = new WebSocketServer({
     port,
-    verifyClient: (info, done) => {
-      const auth = info.req.headers['authorization'];
-      if (auth === `Bearer ${env.WS_AUTH_TOKEN}`) done(true);
-      else done(false, 401, 'Unauthorized');
+
+    // Accept token via header, query, or subprotocol.
+    verifyClient: (
+      info: { origin: string; secure: boolean; req: IncomingMessage },
+      done: (result: boolean, code?: number, message?: string, headers?: OutgoingHttpHeaders) => void
+    ) => {
+      // Parse inputs
+      const url = new URL(info.req.url ?? '/', 'ws://localhost'); // base to parse relative path
+      const qsToken = url.searchParams.get('token')?.trim() ?? null;
+
+      const headerAuth = String(info.req.headers['authorization'] ?? '').trim();
+      const fromHeader = headerAuth.startsWith('Bearer ')
+        ? headerAuth.slice(7)
+        : null;
+
+      // For clients that send subprotocols like ['bearer', <token>]
+      const subprotoRaw = String(info.req.headers['sec-websocket-protocol'] ?? '').trim();
+      const subprotocols = subprotoRaw
+        ? subprotoRaw.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
+      // Token presented by any channel
+      const presented = qsToken ?? fromHeader ?? (subprotocols.length >= 2 && subprotocols[0].toLowerCase() === 'bearer'
+        ? subprotocols[1]
+        : null);
+
+      const expected = String(env.WS_AUTH_TOKEN ?? '').trim();
+      const ok = Boolean(presented && expected && presented === expected);
+
+      // Optional debug (leave during dev):
+      // console.info('[WS verify]', { qsToken, headerAuth, subprotocols, ok });
+
+      // IMPORTANT: always call done(...)
+      if (ok) return done(true);
+      return done(false, 401, 'Unauthorized');
     },
+
+    // Echo "bearer" if client advertised it; this satisfies browsers & some tools.
+    handleProtocols: (protocols: Set<string>) => (protocols.has('bearer') ? 'bearer' : false),
   });
+
+  // Expose for tests
+  // @ts-ignore
   globalThis.wss = wss;
   logger.info({ port }, 'WS server listening');
 
@@ -65,9 +166,7 @@ export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
   heartbeat = setInterval(() => {
     for (const [ws, state] of clients) {
       if (!state.isAlive) {
-        try {
-          ws.terminate();
-        } catch {}
+        try { ws.terminate(); } catch {}
         clients.delete(ws);
         wsClientsActiveGauge.dec();
         continue;
@@ -81,6 +180,7 @@ export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
 
   return controlSurface;
 }
+
 
 function handleConnection(ws: WSClient) {
   const state: ClientState = {
@@ -104,7 +204,11 @@ function handleConnection(ws: WSClient) {
 
   // Replay snapshot on connect
   for (const payload of snapshot.values()) {
-    const update: TokenMetaUpdate = { type: 'tokenMeta.update', at: new Date().toISOString(), payload };
+    const update: TokenMetaUpdate = {
+      type: 'tokenMeta.update',
+      at: new Date().toISOString(),
+      payload,
+    };
     safeSend(ws, update);
   }
 }
@@ -114,12 +218,19 @@ export function upsertSnapshot(payload: TokenMetaUpdate['payload']) {
 }
 
 export function broadcastUpdate(payload: TokenMetaUpdate['payload']) {
-  const update: TokenMetaUpdate = { type: 'tokenMeta.update', at: new Date().toISOString(), payload };
+  const update: TokenMetaUpdate = {
+    type: 'tokenMeta.update',
+    at: new Date().toISOString(),
+    payload,
+  };
 
   // Validate against canonical schema
   const parsed = tokenMetaUpdateZ.safeParse(update);
   if (!parsed.success) {
-    logger.error({ issues: parsed.error.issues, payload }, 'Refusing to broadcast invalid TokenMetaUpdate');
+    logger.error(
+      { issues: parsed.error.issues, payload },
+      'Refusing to broadcast invalid TokenMetaUpdate',
+    );
     return;
   }
 
@@ -173,7 +284,10 @@ function refill(state: ClientState) {
   const now = Date.now();
   const elapsed = Math.floor((now - state.lastRefill) / 1000);
   if (elapsed > 0) {
-    state.tokens = Math.min(opts.bucketCapacity, state.tokens + elapsed * opts.refillPerSec);
+    state.tokens = Math.min(
+      opts.bucketCapacity,
+      state.tokens + elapsed * opts.refillPerSec,
+    );
     state.lastRefill += elapsed * 1000;
   }
 }
@@ -191,7 +305,9 @@ export function stopWsServer() {
     heartbeat = null;
   }
   for (const ws of clients.keys()) {
-    try { ws.close(); } catch {}
+    try {
+      ws.close();
+    } catch {}
   }
   clients.clear();
   wsClientsActiveGauge.set(0);
@@ -199,6 +315,7 @@ export function stopWsServer() {
 
   wss.close();
   wss = null;
+  // @ts-ignore
   globalThis.wss = undefined;
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { compoundedMinOut } from '../../../packages/core/src/utils/slippage.ts';
+import { compoundedMinOut } from '../../../packages/core/src/utils/slippage';
 import { useNotificationStore } from '../useNotificationStore';
 
 interface PairInfo {
@@ -55,7 +55,7 @@ export default function SimulateModal({ pair, onClose }: Props) {
     e.preventDefault();
     if (!canSimulate) return;
     try {
-      const res = await fetch('/simulate', {
+      const response = await fetch('/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -65,7 +65,7 @@ export default function SimulateModal({ pair, onClose }: Props) {
           routerOrder,
         }),
       });
-      const data = await res.json();
+      const data = await response.json();
       const gasUsed = Number(data.gasUsed ?? data.gas ?? 0);
       const flashFee = Number(data.flashFee ?? 0);
       const cost = Number(data.cost ?? 0);

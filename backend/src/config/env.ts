@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import * as v from 'valibot';
 
 const intFromString = (defaultValue: number) =>

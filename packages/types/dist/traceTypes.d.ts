@@ -9,3 +9,4 @@ export interface TraceResult {
     depth: number;
     children: TraceResult[];
 }
+//# sourceMappingURL=traceTypes.d.ts.map

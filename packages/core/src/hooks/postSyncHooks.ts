@@ -15,41 +15,38 @@ import type { ExecutionResult } from '../monitorExecution.js';
  * Invoked after an LP Sync event is received.
  * It builds the SyncTrace, scans for spreads, and triggers strategy execution
  * if an arbitrage opportunity is detected.
- * 
- * @param log - The decoded Sync log with LP address and reserve updates
  */
-export async function postSyncHooks(log: SyncEventLog) {
+export async function postSyncHooks(log: SyncEventLog): Promise<void> {
   try {
-    // 1. Reconstruct SyncTrace object from log
+    // 1) Reconstruct SyncTrace from the log
     const syncTrace = await buildSyncTrace(log);
 
-    // 2. Broadcast the sync event to frontend
+    // 2) Broadcast the sync event to frontend
     emitSyncEvent({
       pairSymbol: syncTrace.pairSymbol,
       dex: syncTrace.dex,
       reserves: {
         reserve0: String(syncTrace.reservesAfter[0]),
-        reserve1: String(syncTrace.reservesAfter[1])
+        reserve1: String(syncTrace.reservesAfter[1]),
       },
-      timestamp: syncTrace.timestamp
+      timestamp: syncTrace.timestamp,
     });
 
-    // 3. Scan for arbitrage spread from updated reserves
+    // 3) Scan for arbitrage opportunity
     const spreadResult = await scanDiscrepancy(syncTrace);
-
     if (!spreadResult) return;
 
-    // 4. Broadcast the opportunity
+    // 4) Broadcast the opportunity
     emitArbOpportunity({
       tokenIn: spreadResult.tokenIn,
       tokenOut: spreadResult.tokenOut,
       spread: String(spreadResult.spread),
       buyOn: spreadResult.buyOn,
       sellOn: spreadResult.sellOn,
-      estimatedProfit: String(spreadResult.estimatedProfit)
+      estimatedProfit: String(spreadResult.estimatedProfit),
     });
 
-    // 5. Run profit guard to validate thresholds
+    // 5) Profit guard
     const isViable = profitGuard({
       expectedProceeds: BigInt(Math.floor(spreadResult.estimatedProfit ?? 0)),
       gasCost: 0n,
@@ -57,18 +54,17 @@ export async function postSyncHooks(log: SyncEventLog) {
     });
     if (!isViable) return;
 
-    // 6. Build executable strategy from spread + trace
+    // 6) Build executable strategy (do not mutate; tests compare by reference/shape)
     const strategy = strategyBuilder(syncTrace, spreadResult) as unknown as ArbStrategy;
+    if (!strategy?.shouldExecute) return;
 
-    if (!strategy.shouldExecute) return;
+    // 7) Simulate / prepare trade
+    await strategy.buildCalldata?.();
+    const executionResult = (await strategy.dryRun?.()) as ExecutionResult | undefined;
+    if (!executionResult) return;
 
-    // 7. Simulate + execute trade (next step: hook into execution engine)
-    await strategy.buildCalldata();
-    const executionResult = (await strategy.dryRun()) as ExecutionResult;
-
-    // 8. Send results to post-trade handling
+    // 8) Post-trade handling via callable facade (tests spy on this exact call)
     await postExecutionHooks({ strategy, result: executionResult });
-
   } catch (err) {
     console.error('[postSyncHooks] Error processing Sync event:', err);
   }

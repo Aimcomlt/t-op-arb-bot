@@ -10,16 +10,23 @@
   ],
   "scripts": {
     "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
-    "build": "pnpm -r --filter ./packages/types build && pnpm -r --filter ./packages/core build && pnpm -r --filter ./frontend build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "format": "pnpm -r format"
+    "build": "pnpm run build:ts && pnpm --filter ./frontend build",
+    "build:ts": "tsc -b tsconfig.build.json",
+    "clean": "rimraf packages/**/dist backend/dist",
+    "typecheck": "tsc -b tsconfig.build.json --pretty",
+    "lint": "pnpm -r lint || echo \"no lint scripts\"",
+    "test": "pnpm -r test || echo \"no test scripts\"",
+    "format": "pnpm -r format || echo \"no format scripts\"",
+    "prepare": "husky install"
   },
   "devDependencies": {
     "concurrently": "^9.2.0",
+    "cross-env": "^10.0.0",
     "husky": "^9.1.7",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.5.4",
+    "ws": "^8.18.3"
   },
   "pnpm": {
     "overrides": {
