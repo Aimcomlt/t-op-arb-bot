@@ -94,6 +94,42 @@ export function startHttpServer(port = env.HTTP_PORT) {
       return;
     }
 
+    if (req.method === 'GET' && req.url?.startsWith('/ws-auth-check')) {
+      try {
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const token = url.searchParams.get('token');
+        const origin = String(req.headers.origin ?? '');
+
+        if (
+          env.FRONTEND_ORIGINS.length > 0 &&
+          !env.FRONTEND_ORIGINS.includes(origin)
+        ) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'origin not allowed' }));
+          return;
+        }
+
+        if (!token) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing token' }));
+          return;
+        }
+
+        if (token !== env.WS_AUTH_TOKEN) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid token' }));
+          return;
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'invalid request' }));
+      }
+      return;
+    }
+
     if (req.method === 'GET' && req.url?.startsWith('/quote')) {
       try {
         const url = new URL(req.url, `http://${req.headers.host}`);
