@@ -1,11 +1,5 @@
 export { emitExecutionResult, emitRevertAlert } from '@/abie/broadcaster/broadcastHooks.js';
-/** Exported so tests can spy; noop until wired to a real DB. */
-export declare function logToDatabase(_entry: {
-    txHash: string;
-    trace?: unknown;
-}): Promise<void>;
-/** Optional tuning stub */
-export declare function updateSlippageTolerance(_pair: string, _profit: unknown): void;
+export { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
 /** Method 1: success handler (tests call this directly) */
 export declare function onExecutionSuccess(args: {
     txHash: string;

@@ -2,7 +2,6 @@
 
 // Re-export so tests can spy via this module
 export { emitExecutionResult, emitRevertAlert } from '@/abie/broadcaster/broadcastHooks.js';
-export { logToDatabase } from '@/utils/dbLogger.js';
 export { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
 
 // Local aliases used internally
@@ -11,7 +10,7 @@ import {
   emitRevertAlert as _emitRevertAlert,
   emitSystemLog as _emitSystemLog,
 } from '@/abie/broadcaster/broadcastHooks.js';
-import { logToDatabase } from '@/utils/dbLogger.js';
+import { logToDatabase } from '@blazing/core/utils/dbLogger.js';
 import { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
 import { simulateUnknownTx } from '@/abie/simulation/simulateUnknownTx.js';
 import { formatTraceForLogs } from '@/utils/formatTraceForLogs.js';
@@ -38,9 +37,7 @@ export async function onExecutionSuccess(args: {
   profit?: unknown;
   gasUsed?: string;
 }) {
-  // ✅ Import THIS module’s namespace by URL so the spy and this call share identity.
-  const self = await import(import.meta.url);
-  await self.logToDatabase({ txHash: args.txHash, trace: args.trace });
+  await logToDatabase({ txHash: args.txHash, trace: args.trace });
 
   _emitExecutionResult({
     txHash: args.txHash,
@@ -55,7 +52,7 @@ export async function onExecutionSuccess(args: {
   if (sim?.trace) {
     const formatted = formatTraceForLogs(sim.trace);
     console.log(formatted);
-    _emitSystemLog(formatted);
+    _emitSystemLog({ message: formatted, level: 'info' });
   }
 }
 

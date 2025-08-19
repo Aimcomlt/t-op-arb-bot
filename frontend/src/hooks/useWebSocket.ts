@@ -84,17 +84,19 @@ export function useWebSocket(enabled = true) {
 
     if (wsRef.current) return; // already connecting/connected
 
-    const openSocket = (_mode: AuthMode): WebSocket => {
+    const openSocket = (mode: AuthMode): WebSocket => {
       const urlObj = new URL(rawBase);
       if (resolvedToken) {
-        // Ensure the token is always sent. Append as a query param (avoids proxy
-        // stripping) and also advertise it via subprotocol for servers that
-        // expect an Authorization header.
-        if (!urlObj.searchParams.get('token')) {
-          urlObj.searchParams.set('token', resolvedToken);
+        if (mode === 'subprotocol') {
+          // Send token via Sec-WebSocket-Protocol header
+          return new WebSocket(urlObj.toString(), ['bearer', resolvedToken]);
         }
-        return new WebSocket(urlObj.toString(), ['bearer', resolvedToken]);
+
+        // Default to appending the token as a query param. This avoids proxy
+        // stripping and works with simple WS servers.
+        urlObj.searchParams.set('token', resolvedToken);
       }
+
       return new WebSocket(urlObj.toString());
     };
 
