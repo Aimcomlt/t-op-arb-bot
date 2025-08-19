@@ -54,7 +54,7 @@ function getPort(): number {
 }
 
 describe('wsServer authentication', () => {
-  it('rejects clients without bearer token', async () => {
+  it('rejects clients without token', async () => {
     startWsServer(0);
     const port = getPort();
 
@@ -67,6 +67,62 @@ describe('wsServer authentication', () => {
     ).rejects.toThrow(/401/);
 
     expect(controlSurface.getClientCount()).toBe(0);
+  });
+
+  it('accepts clients with Authorization header', async () => {
+    startWsServer(0);
+    const port = getPort();
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, undefined, {
+      headers: { Authorization: 'Bearer secret' },
+    });
+    await new Promise((r) => ws.on('open', r));
+    ws.close();
+  });
+
+  it('accepts token via subprotocol', async () => {
+    startWsServer(0);
+    const port = getPort();
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+      headers: { 'Sec-WebSocket-Protocol': 'token:secret' },
+    });
+    await new Promise((r) => ws.on('open', r));
+    ws.close();
+  });
+
+  it('allows ?token= in development', async () => {
+    setEnv({ ...baseEnv, NODE_ENV: 'development' as any });
+    startWsServer(0);
+    const port = getPort();
+    const ws = new WebSocket(`ws://127.0.0.1:${port}?token=secret`);
+    await new Promise((r) => ws.on('open', r));
+    ws.close();
+  });
+
+  it('rejects ?token= outside development', async () => {
+    startWsServer(0);
+    const port = getPort();
+    await expect(
+      new Promise((resolve, reject) => {
+        const ws = new WebSocket(`ws://127.0.0.1:${port}?token=secret`);
+        ws.on('open', resolve);
+        ws.on('error', reject);
+      })
+    ).rejects.toThrow(/401/);
+  });
+
+  it('enforces FRONTEND_ORIGINS allow-list', async () => {
+    setEnv({ ...baseEnv, FRONTEND_ORIGINS: 'https://allowed.io' as any });
+    startWsServer(0);
+    const port = getPort();
+    await expect(
+      new Promise((resolve, reject) => {
+        const ws = new WebSocket(`ws://127.0.0.1:${port}`, undefined, {
+          headers: { Authorization: 'Bearer secret', Origin: 'https://not.io' },
+        });
+        ws.on('open', resolve);
+        ws.on('error', reject);
+      })
+    ).rejects.toThrow(/403/);
   });
 });
 

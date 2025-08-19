@@ -1,6 +1,6 @@
 // backend/src/server/wsServer.ts
 import WebSocket, { WebSocketServer } from 'ws';
-import type { IncomingMessage, OutgoingHttpHeaders } from 'http';
+import { createServer, type IncomingMessage } from 'http';
 import { env } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 import {
@@ -19,6 +19,7 @@ type WSServer = InstanceType<typeof WebSocketServer>;
 // State
 const snapshot = new Map<string, TokenMetaUpdate['payload']>();
 const clients = new Map<WSClient, ClientState>();
+let server: ReturnType<typeof createServer> | null = null;
 let wss: WSServer | null = null;
 let heartbeat: NodeJS.Timeout | null = null;
 
@@ -45,66 +46,34 @@ const defaultOpts = {
 
 let opts: Required<WsServerOptions> = { ...defaultOpts };
 
-/**
- * Extract a token from any of the supported auth transports:
- * - Authorization header: "Bearer <token>"
- * - Query parameter:      /stream?token=<token>
- * - Subprotocols:         new WebSocket(url, ['bearer', '<token>'])
- *
- * Returns the token (if found), how it was provided, and (optionally)
- * a response header to echo the selected subprotocol.
- */
-function extractTokenFromUpgrade(info: any): {
+function maskToken(token: string | null): string {
+  if (!token) return '';
+  if (token.length <= 8) return '*'.repeat(token.length);
+  return `${token.slice(0, 4)}***${token.slice(-4)}`;
+}
+
+function extractToken(req: IncomingMessage): {
   token: string | null;
-  via: 'header' | 'query' | 'subprotocol' | null;
-  responseHeaders?: Record<string, string>;
+  via: 'protocol' | 'header' | 'query' | null;
 } {
-  try {
-    // 1) Authorization header
-    const auth = (info.req.headers?.['authorization'] as string | undefined) ?? '';
-    const parts = auth.split(' ');
-    if (parts.length === 2 && /^bearer$/i.test(parts[0])) {
-      return { token: parts[1], via: 'header' };
-    }
-
-    // 2) Query param
-    const rawUrl = (info.req.url as string) || '/';
-    const url = new URL(rawUrl, 'http://localhost'); // base required only for parsing
-    const qpToken = url.searchParams.get('token');
-    if (qpToken) {
-      return { token: qpToken, via: 'query' };
-    }
-
-    // 3) Subprotocols
-    const protoHeader = (info.req.headers?.['sec-websocket-protocol'] as string | undefined) ?? '';
-    const requested = protoHeader
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    if (requested.length > 0) {
-      // Accept if either:
-      //   - token is directly one of the protocols, OR
-      //   - 'bearer' is present AND token is also present as a separate protocol.
-      const hasBearer = requested.includes('bearer');
-      const tokenProto = requested.find((p) => p === env.WS_AUTH_TOKEN) || null;
-
-      if (tokenProto) {
-        // Choose a protocol to echo back. If the client offered 'bearer', echo that;
-        // otherwise echo the token itself (must echo one of the offered values).
-        const selected = hasBearer ? 'bearer' : tokenProto;
-        return {
-          token: tokenProto,
-          via: 'subprotocol',
-          responseHeaders: { 'Sec-WebSocket-Protocol': selected },
-        };
-      }
-    }
-
-    return { token: null, via: null };
-  } catch {
-    return { token: null, via: null };
+  const proto = String(req.headers['sec-websocket-protocol'] ?? '');
+  const protocols = proto.split(',').map((s) => s.trim()).filter(Boolean);
+  for (const p of protocols) {
+    if (/^token:/i.test(p)) return { token: p.slice(6), via: 'protocol' };
+    if (/^bearer\s+/i.test(p)) return { token: p.slice(7), via: 'protocol' };
   }
+
+  const auth = String(req.headers['authorization'] ?? '');
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (m) return { token: m[1], via: 'header' };
+
+  try {
+    const url = new URL(req.url ?? '/', 'http://localhost');
+    const qp = url.searchParams.get('token');
+    if (qp) return { token: qp, via: 'query' };
+  } catch {}
+
+  return { token: null, via: null };
 }
 
 export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
@@ -112,53 +81,54 @@ export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
 
   opts = { ...defaultOpts, ...o } as Required<WsServerOptions>;
 
-  wss = new WebSocketServer({
-    port,
+  wss = new WebSocketServer({ noServer: true });
+  server = createServer();
 
-    // Accept token via header, query, or subprotocol.
-    verifyClient: (
-      info: { origin: string; secure: boolean; req: IncomingMessage },
-      done: (result: boolean, code?: number, message?: string, headers?: OutgoingHttpHeaders) => void
-    ) => {
-      // Parse inputs
-      const url = new URL(info.req.url ?? '/', 'ws://localhost'); // base to parse relative path
-      const qsToken = url.searchParams.get('token')?.trim() ?? null;
+  server.on('upgrade', (req, socket, head) => {
+    const origin = String(req.headers.origin ?? '');
+    const { token, via } = extractToken(req);
+    const masked = maskToken(token);
 
-      const headerAuth = String(info.req.headers['authorization'] ?? '').trim();
-      const fromHeader = headerAuth.startsWith('Bearer ')
-        ? headerAuth.slice(7)
-        : null;
+    if (env.FRONTEND_ORIGINS.length > 0 && !env.FRONTEND_ORIGINS.includes(origin)) {
+      logger.warn({ origin, token: masked, reason: 'origin not allowed' }, 'WS upgrade rejected');
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
+    }
 
-      // For clients that send subprotocols like ['bearer', <token>]
-      const subprotoRaw = String(info.req.headers['sec-websocket-protocol'] ?? '').trim();
-      const subprotocols = subprotoRaw
-        ? subprotoRaw.split(',').map((s) => s.trim()).filter(Boolean)
-        : [];
+    if (via === 'query' && env.NODE_ENV !== 'development') {
+      logger.warn({ origin, token: masked, reason: 'query param not allowed' }, 'WS upgrade rejected');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
 
-      // Token presented by any channel
-      const presented = qsToken ?? fromHeader ?? (subprotocols.length >= 2 && subprotocols[0].toLowerCase() === 'bearer'
-        ? subprotocols[1]
-        : null);
+    if (!token) {
+      logger.warn({ origin, reason: 'missing token' }, 'WS upgrade rejected');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
 
-      const expected = String(env.WS_AUTH_TOKEN ?? '').trim();
-      const ok = Boolean(presented && expected && presented === expected);
+    if (token !== env.WS_AUTH_TOKEN) {
+      logger.warn({ origin, token: masked, reason: 'invalid token' }, 'WS upgrade rejected');
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
 
-      // Optional debug (leave during dev):
-      // console.info('[WS verify]', { qsToken, headerAuth, subprotocols, ok });
-
-      // IMPORTANT: always call done(...)
-      if (ok) return done(true);
-      return done(false, 401, 'Unauthorized');
-    },
-
-    // Echo "bearer" if client advertised it; this satisfies browsers & some tools.
-    handleProtocols: (protocols: Set<string>) => (protocols.has('bearer') ? 'bearer' : false),
+    delete req.headers['sec-websocket-protocol'];
+    wss!.handleUpgrade(req, socket, head, (ws) => {
+      wss!.emit('connection', ws, req);
+    });
   });
 
+  server.listen(port);
   // Expose for tests
   // @ts-ignore
-  globalThis.wss = wss;
-  logger.info({ port }, 'WS server listening');
+  globalThis.wss = server;
+  const addr = server.address();
+  logger.info({ port: typeof addr === 'object' && addr ? addr.port : port }, 'WS server listening');
 
   wss.on('connection', handleConnection);
   wss.on('error', (err: unknown) => logger.error({ err }, 'WS server error'));
@@ -299,7 +269,7 @@ function totalQueueDepth(): number {
 }
 
 export function stopWsServer() {
-  if (!wss) return;
+  if (!wss && !server) return;
   if (heartbeat) {
     clearInterval(heartbeat);
     heartbeat = null;
@@ -313,8 +283,14 @@ export function stopWsServer() {
   wsClientsActiveGauge.set(0);
   wsQueueDepthGauge.set(0);
 
-  wss.close();
-  wss = null;
+  if (wss) {
+    wss.close();
+    wss = null;
+  }
+  if (server) {
+    server.close();
+    server = null;
+  }
   // @ts-ignore
   globalThis.wss = undefined;
 }
