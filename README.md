@@ -67,6 +67,35 @@ It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans
    ```
    Navigate to http://localhost:5173 and click **Connect Wallet**.
 
+## ⚙️ Environment Variables
+
+| Key | Description | Default |
+| --- | ----------- | ------- |
+| `WS_AUTH_TOKEN` | Shared secret for WebSocket auth; send via subprotocol or `Authorization` header. | – |
+| `FRONTEND_ORIGINS` | Comma-separated list of allowed `Origin` values for WebSocket upgrades. | (allow all) |
+| `WS_PORT` | Port for the backend WebSocket server. | `8081` |
+| `RPC_HTTP_URL` | HTTP endpoint for the target chain. | – |
+| `RPC_WSS_URL` | WebSocket endpoint for the target chain. | – |
+
+## 🔌 WebSocket Access
+
+### Connecting with `wscat`
+
+```bash
+# Using subprotocol
+npx wscat -c ws://localhost:8081 -o http://localhost:5173 -s "token:MY_TOKEN"
+
+# Using Authorization header
+npx wscat -c ws://localhost:8081 -o http://localhost:5173 -H "Authorization: Bearer MY_TOKEN"
+```
+
+### Troubleshooting
+
+| Browser symptom | Likely cause | Fix |
+| ---------------- | ----------- | --- |
+| Close code `1006` | Handshake failed (blocked origin or wrong `WS_PORT`). | Ensure your origin is allowed and the server is listening on `WS_PORT`. |
+| HTTP `401` | Missing or invalid `WS_AUTH_TOKEN`. | Supply the correct token via subprotocol or `Authorization` header. |
+
 ## 📡 HTTP API
 
 ### `GET /quote`
