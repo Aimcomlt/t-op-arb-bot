@@ -3,6 +3,10 @@ import { useEffect, useRef } from 'react';
 import { tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 import { useArbStore } from '../useArbStore';
 
+// Exposed for tests/mocks; defaults to a token+json subprotocol handshake
+export let openSocket = (url: string, token: string) =>
+  new WebSocket(url, [`token:${token}`, 'json']);
+
 function maskToken(t?: string | null) {
   if (!t) return '';
   if (t.length <= 10) return '•••';
@@ -82,14 +86,12 @@ export function useWebSocket(enabled = true) {
 
     if (wsRef.current) return; // already connecting/connected
 
-    const openSocket = (): WebSocket => {
+    const createSocket = (): WebSocket => {
       const urlObj = new URL(rawBase);
-      if (resolvedToken) {
-        if (forceQueryToken) urlObj.searchParams.set('token', resolvedToken);
-        return new WebSocket(urlObj.toString(), [`token:${resolvedToken}`, 'json']);
+      if (resolvedToken && forceQueryToken) {
+        urlObj.searchParams.set('token', resolvedToken);
       }
-
-      return new WebSocket(urlObj.toString(), ['json']);
+      return openSocket(urlObj.toString(), resolvedToken!);
     };
 
     const scheduleReconnect = () => {
@@ -118,8 +120,9 @@ export function useWebSocket(enabled = true) {
       setStatus('connecting');
 
       let ws: WebSocket | null = null;
+      let handshakeError = false;
       try {
-        ws = openSocket();
+        ws = createSocket();
       } catch (err) {
         console.error('[WS] constructor failed:', err);
         scheduleReconnect();
@@ -173,11 +176,14 @@ export function useWebSocket(enabled = true) {
           code1006Ref.current = 0;
         }
 
-        scheduleReconnect();
+        if (!handshakeError) scheduleReconnect();
+        handshakeError = false;
       };
 
       ws.onerror = () => {
-        // onclose will follow; handled there
+        if (!mountedRef.current) return;
+        handshakeError = true;
+        scheduleReconnect();
       };
     };
 
