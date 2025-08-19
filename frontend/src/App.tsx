@@ -3,6 +3,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import LivePairsTable from './components/LivePairsTable';
 import Header from './components/Header';
 import NotificationArea from './components/NotificationArea';
+import PreflightButton from './components/PreflightButton';
 import { useAccount } from 'wagmi';
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
     <div>
       <Header />
       <NotificationArea />
+      <PreflightButton />
       {isConnected ? (
         <div>
           <h1>Frontend</h1>

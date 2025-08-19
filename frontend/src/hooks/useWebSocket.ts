@@ -7,7 +7,7 @@ import { useArbStore } from '../useArbStore';
 export let openSocket = (url: string, token: string) =>
   new WebSocket(url, [`token:${token}`, 'json']);
 
-function maskToken(t?: string | null) {
+export function maskToken(t?: string | null) {
   if (!t) return '';
   if (t.length <= 10) return '•••';
   return `${t.slice(0, 6)}…${t.slice(-4)}`;

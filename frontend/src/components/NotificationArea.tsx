@@ -23,7 +23,8 @@ export default function NotificationArea() {
             marginBottom: '0.5rem',
             padding: '0.5rem 1rem',
             borderRadius: '0.25rem',
-            backgroundColor: n.type === 'error' ? '#fdd' : '#ffd',
+            backgroundColor:
+              n.type === 'error' ? '#fdd' : n.type === 'success' ? '#dfd' : '#ffd',
             color: '#000',
           }}
         >
