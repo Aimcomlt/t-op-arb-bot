@@ -33,6 +33,9 @@ const booleanFromString = (defaultValue: boolean) =>
   );
 
 export const EnvSchema = v.object({
+  NODE_ENV: v.optional(v.string()),
+  FRONTEND_ORIGINS: v.optional(v.string()),
+  WS_PORT: v.optional(v.string()),
   RPC_HTTP_URL: v.pipe(v.string(), v.url()),
   RPC_WSS_URL: v.pipe(v.string(), v.url()),
   CHAIN_ID: v.pipe(
@@ -42,7 +45,6 @@ export const EnvSchema = v.object({
     v.integer(),
     v.minValue(1),
   ),
-  WS_PORT: nonNegIntFromString(8080),
   HTTP_PORT: nonNegIntFromString(3000),
   LOG_LEVEL: v.pipe(
     v.optional(v.picklist(['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const)),
@@ -76,8 +78,21 @@ export const EnvSchema = v.object({
   TRACE_BROADCAST_ENABLED: booleanFromString(false),
 });
 
-export type Env = v.InferOutput<typeof EnvSchema>;
+export type RawEnv = v.InferOutput<typeof EnvSchema>;
+export type Env = Omit<RawEnv, 'WS_PORT' | 'FRONTEND_ORIGINS'> & {
+  WS_PORT: number;
+  FRONTEND_ORIGINS: string[];
+};
 export let env: Env;
-export function setEnv(e: Env): void {
-  env = e;
+export function setEnv(e: RawEnv): void {
+  const wsPort = e.WS_PORT ? Number.parseInt(e.WS_PORT, 10) : 8080;
+  const origins = e.FRONTEND_ORIGINS
+    ? e.FRONTEND_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+  const { WS_PORT: _, FRONTEND_ORIGINS: __, ...rest } = e;
+  env = {
+    ...rest,
+    WS_PORT: Number.isFinite(wsPort) ? wsPort : 8080,
+    FRONTEND_ORIGINS: origins,
+  };
 }
