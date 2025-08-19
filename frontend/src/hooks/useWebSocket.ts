@@ -49,9 +49,9 @@ export function useWebSocket(enabled = true) {
   })();
 
   const forcedMode = import.meta.env.VITE_WS_AUTH_MODE as AuthMode | undefined;
-  const authModeRef = useRef<AuthMode>(
-    forcedMode ?? (resolvedToken ? 'query' : 'none')
-  );
+  // Default to sending the token as a query parameter; fall back modes are
+  // retained for logging but the handshake will always include the token.
+  const authModeRef = useRef<AuthMode>(forcedMode ?? 'query');
 
   useEffect(() => {
     mountedRef.current = true;
@@ -84,17 +84,15 @@ export function useWebSocket(enabled = true) {
 
     if (wsRef.current) return; // already connecting/connected
 
-    const openSocket = (mode: AuthMode): WebSocket => {
+    const openSocket = (_mode: AuthMode): WebSocket => {
       const urlObj = new URL(rawBase);
-      if (mode === 'query' && resolvedToken) {
-        // Don't duplicate token if already present in the base URL
+      if (resolvedToken) {
+        // Ensure the token is always sent. Append as a query param (avoids proxy
+        // stripping) and also advertise it via subprotocol for servers that
+        // expect an Authorization header.
         if (!urlObj.searchParams.get('token')) {
           urlObj.searchParams.set('token', resolvedToken);
         }
-        return new WebSocket(urlObj.toString());
-      }
-      if (mode === 'subprotocol' && resolvedToken) {
-        // Browser cannot set Authorization header; subprotocol is the alternative
         return new WebSocket(urlObj.toString(), ['bearer', resolvedToken]);
       }
       return new WebSocket(urlObj.toString());
@@ -111,27 +109,14 @@ export function useWebSocket(enabled = true) {
       reconnectTimerRef.current = window.setTimeout(connect, delay);
     };
 
-    const maybeToggleAuthMode = () => {
-      if (forcedMode) return; // honor explicit mode
-      if (!resolvedToken) return;
-
-      authModeRef.current =
-        authModeRef.current === 'query'
-          ? 'subprotocol'
-          : authModeRef.current === 'subprotocol'
-          ? 'query'
-          : 'query';
-    };
-
     const connect = () => {
       if (!mountedRef.current) return;
 
       const mode = authModeRef.current;
 
-      // If an auth mode requiring a token is selected but we have no token, bail (avoid spam).
-      if ((mode === 'query' || mode === 'subprotocol') && !resolvedToken) {
+      if (!resolvedToken) {
         console.warn(
-          `[WS] ${mode} auth selected but no token found. Set VITE_WS_TOKEN or include ?token= in VITE_WS_URL (.env.local).`
+          '[WS] no auth token found. Set VITE_WS_TOKEN or include ?token= in VITE_WS_URL (.env.local).'
         );
         setStatus('disconnected');
         return;
@@ -144,7 +129,6 @@ export function useWebSocket(enabled = true) {
         ws = openSocket(mode);
       } catch (err) {
         console.error('[WS] constructor failed:', err);
-        maybeToggleAuthMode();
         scheduleReconnect();
         return;
       }
@@ -191,8 +175,7 @@ export function useWebSocket(enabled = true) {
 
         // Handshake/auth rejections in browsers are often surfaced as 1006 (no clean close).
         if (e.code === 1006 || e.code === 1008 || /unauth|auth|policy|401/i.test(e.reason)) {
-          maybeToggleAuthMode();
-          scheduleReconnect(true); // immediate retry with alternate mode
+          scheduleReconnect(true); // immediate retry
         } else {
           scheduleReconnect();
         }
