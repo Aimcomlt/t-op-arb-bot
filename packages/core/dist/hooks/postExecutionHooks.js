@@ -1,16 +1,13 @@
 // packages/core/src/hooks/postExecutionHooks.ts
 // Re-export so tests can spy via this module
 export { emitExecutionResult, emitRevertAlert } from '@/abie/broadcaster/broadcastHooks.js';
+export { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
 // Local aliases used internally
-import { emitExecutionResult as _emitExecutionResult, emitRevertAlert as _emitRevertAlert, } from '@/abie/broadcaster/broadcastHooks.js';
-/** Exported so tests can spy; noop until wired to a real DB. */
-export async function logToDatabase(_entry) {
-    /* noop */
-}
-/** Optional tuning stub */
-export function updateSlippageTolerance(_pair, _profit) {
-    /* noop */
-}
+import { emitExecutionResult as _emitExecutionResult, emitRevertAlert as _emitRevertAlert, emitSystemLog as _emitSystemLog, } from '@/abie/broadcaster/broadcastHooks.js';
+import { logToDatabase } from '@blazing/core/utils/dbLogger.js';
+import { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
+import { simulateUnknownTx } from '@/abie/simulation/simulateUnknownTx.js';
+import { formatTraceForLogs } from '@/utils/formatTraceForLogs.js';
 /** Helpers */
 function toProfitString(p) {
     if (typeof p === 'bigint')
@@ -30,15 +27,20 @@ function toRouteString(route) {
 }
 /** Method 1: success handler (tests call this directly) */
 export async function onExecutionSuccess(args) {
-    // ✅ Import THIS module’s namespace by URL so the spy and this call share identity.
-    const self = await import(import.meta.url);
-    await self.logToDatabase({ txHash: args.txHash, trace: args.trace });
+    await logToDatabase({ txHash: args.txHash, trace: args.trace });
     _emitExecutionResult({
         txHash: args.txHash,
         status: 'success',
         profit: toProfitString(args.profit),
         gasUsed: args.gasUsed ?? '0',
     });
+    updateSlippageTolerance(args.pair, toProfitString(args.profit));
+    const sim = await simulateUnknownTx({ txHash: args.txHash });
+    if (sim?.trace) {
+        const formatted = formatTraceForLogs(sim.trace);
+        console.log(formatted);
+        _emitSystemLog({ message: formatted, level: 'info' });
+    }
 }
 /** Method 2: revert handler (tests call this directly) */
 export function onExecutionRevert(args) {
