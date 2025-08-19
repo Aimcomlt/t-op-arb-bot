@@ -60,3 +60,36 @@ describe('GET /opportunities', () => {
     expect(data.entries[0]).toHaveProperty('pairSymbol');
   });
 });
+
+describe('GET /ws-auth-check', () => {
+  it('returns 200 for valid token', async () => {
+    server = startHttpServer(0);
+    await new Promise((r) => server.on('listening', r));
+    const port = getPort();
+    const res = await fetch(`http://127.0.0.1:${port}/ws-auth-check?token=secret`);
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects invalid token', async () => {
+    server = startHttpServer(0);
+    await new Promise((r) => server.on('listening', r));
+    const port = getPort();
+    const res = await fetch(`http://127.0.0.1:${port}/ws-auth-check?token=bad`);
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.error).toMatch(/invalid/);
+  });
+
+  it('enforces FRONTEND_ORIGINS allow-list', async () => {
+    setEnv({ ...baseEnv, FRONTEND_ORIGINS: 'https://allowed.io' as any });
+    server = startHttpServer(0);
+    await new Promise((r) => server.on('listening', r));
+    const port = getPort();
+    const res = await fetch(`http://127.0.0.1:${port}/ws-auth-check?token=secret`, {
+      headers: { Origin: 'https://not.io' },
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toMatch(/origin/);
+  });
+});
