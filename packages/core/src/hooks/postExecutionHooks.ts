@@ -2,22 +2,19 @@
 
 // Re-export so tests can spy via this module
 export { emitExecutionResult, emitRevertAlert } from '@/abie/broadcaster/broadcastHooks.js';
+export { logToDatabase } from '@/utils/dbLogger.js';
+export { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
 
 // Local aliases used internally
 import {
   emitExecutionResult as _emitExecutionResult,
   emitRevertAlert as _emitRevertAlert,
+  emitSystemLog as _emitSystemLog,
 } from '@/abie/broadcaster/broadcastHooks.js';
-
-/** Exported so tests can spy; noop until wired to a real DB. */
-export async function logToDatabase(_entry: { txHash: string; trace?: unknown }): Promise<void> {
-  /* noop */
-}
-
-/** Optional tuning stub */
-export function updateSlippageTolerance(_pair: string, _profit: unknown): void {
-  /* noop */
-}
+import { logToDatabase } from '@/utils/dbLogger.js';
+import { updateSlippageTolerance } from '@/config/arbitrageConfig.js';
+import { simulateUnknownTx } from '@/abie/simulation/simulateUnknownTx.js';
+import { formatTraceForLogs } from '@/utils/formatTraceForLogs.js';
 
 /** Helpers */
 function toProfitString(p: unknown): string {
@@ -51,6 +48,15 @@ export async function onExecutionSuccess(args: {
     profit: toProfitString(args.profit),
     gasUsed: args.gasUsed ?? '0',
   });
+
+  updateSlippageTolerance(args.pair, toProfitString(args.profit));
+
+  const sim = await simulateUnknownTx({ txHash: args.txHash });
+  if (sim?.trace) {
+    const formatted = formatTraceForLogs(sim.trace);
+    console.log(formatted);
+    _emitSystemLog(formatted);
+  }
 }
 
 /** Method 2: revert handler (tests call this directly) */
