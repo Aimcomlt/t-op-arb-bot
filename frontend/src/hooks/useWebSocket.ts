@@ -3,8 +3,6 @@ import { useEffect, useRef } from 'react';
 import { tokenMetaUpdateZ } from '@t-op-arb-bot/types';
 import { useArbStore } from '../useArbStore';
 
-type AuthMode = 'query' | 'subprotocol' | 'none';
-
 function maskToken(t?: string | null) {
   if (!t) return '';
   if (t.length <= 10) return '•••';
@@ -19,6 +17,7 @@ export function useWebSocket(enabled = true) {
   const reconnectTimerRef = useRef<number | null>(null);
   const mountedRef = useRef(false);
   const attemptRef = useRef(0);
+  const code1006Ref = useRef(0);
 
   // ---- Resolve base URL and token from multiple sources ----
   const rawBase = (import.meta.env.VITE_WS_URL as string | undefined) ?? '';
@@ -48,10 +47,9 @@ export function useWebSocket(enabled = true) {
     }
   })();
 
-  const forcedMode = import.meta.env.VITE_WS_AUTH_MODE as AuthMode | undefined;
-  // Default to sending the token as a query parameter; fall back modes are
-  // retained for logging but the handshake will always include the token.
-  const authModeRef = useRef<AuthMode>(forcedMode ?? 'query');
+  const forceQueryToken =
+    import.meta.env.DEV &&
+    (import.meta.env.VITE_WS_DEV_QUERY_TOKEN as string | undefined) === '1';
 
   useEffect(() => {
     mountedRef.current = true;
@@ -84,28 +82,23 @@ export function useWebSocket(enabled = true) {
 
     if (wsRef.current) return; // already connecting/connected
 
-    const openSocket = (mode: AuthMode): WebSocket => {
+    const openSocket = (): WebSocket => {
       const urlObj = new URL(rawBase);
       if (resolvedToken) {
-        if (mode === 'subprotocol') {
-          // Send token via Sec-WebSocket-Protocol header
-          return new WebSocket(urlObj.toString(), ['bearer', resolvedToken]);
-        }
-
-        // Default to appending the token as a query param. This avoids proxy
-        // stripping and works with simple WS servers.
-        urlObj.searchParams.set('token', resolvedToken);
+        if (forceQueryToken) urlObj.searchParams.set('token', resolvedToken);
+        return new WebSocket(urlObj.toString(), [`token:${resolvedToken}`, 'json']);
       }
 
-      return new WebSocket(urlObj.toString());
+      return new WebSocket(urlObj.toString(), ['json']);
     };
 
-    const scheduleReconnect = (immediate = false) => {
+    const scheduleReconnect = () => {
       if (!mountedRef.current) return;
 
       attemptRef.current += 1;
-      const backoff = Math.min(1000 * 2 ** attemptRef.current, 15_000);
-      const delay = immediate ? 0 : backoff;
+      const base = 1000 * 2 ** (attemptRef.current - 1);
+      const jitter = Math.random() * 1000;
+      const delay = Math.min(base + jitter, 20_000);
 
       if (reconnectTimerRef.current) window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = window.setTimeout(connect, delay);
@@ -113,8 +106,6 @@ export function useWebSocket(enabled = true) {
 
     const connect = () => {
       if (!mountedRef.current) return;
-
-      const mode = authModeRef.current;
 
       if (!resolvedToken) {
         console.warn(
@@ -128,7 +119,7 @@ export function useWebSocket(enabled = true) {
 
       let ws: WebSocket | null = null;
       try {
-        ws = openSocket(mode);
+        ws = openSocket();
       } catch (err) {
         console.error('[WS] constructor failed:', err);
         scheduleReconnect();
@@ -140,20 +131,18 @@ export function useWebSocket(enabled = true) {
       // Helpful connection diagnostics
       try {
         const u = new URL(rawBase);
-        const willSendQuery =
-          mode === 'query' &&
-          (!!u.searchParams.get('token') || !!resolvedToken);
+        if (forceQueryToken && resolvedToken) u.searchParams.set('token', maskToken(resolvedToken));
         console.info('[WS] connecting', {
-          url: willSendQuery && resolvedToken ? `${u.origin}${u.pathname}?token=${maskToken(resolvedToken)}` : u.toString(),
-          mode,
+          url: u.toString(),
           token: resolvedToken ? maskToken(resolvedToken) : '(none)',
-          forcedMode: forcedMode ?? '(auto)',
+          queryToken: forceQueryToken,
           attempt: attemptRef.current,
         });
       } catch {}
 
       ws.onopen = () => {
         attemptRef.current = 0;
+        code1006Ref.current = 0;
         if (!mountedRef.current) return;
         setStatus('connected');
       };
@@ -175,12 +164,16 @@ export function useWebSocket(enabled = true) {
         setStatus('disconnected');
         wsRef.current = null;
 
-        // Handshake/auth rejections in browsers are often surfaced as 1006 (no clean close).
-        if (e.code === 1006 || e.code === 1008 || /unauth|auth|policy|401/i.test(e.reason)) {
-          scheduleReconnect(true); // immediate retry
+        if (e.code === 1006) {
+          code1006Ref.current += 1;
+          if (code1006Ref.current >= 3 && typeof window !== 'undefined') {
+            window.alert('Run Preflight');
+          }
         } else {
-          scheduleReconnect();
+          code1006Ref.current = 0;
         }
+
+        scheduleReconnect();
       };
 
       ws.onerror = () => {
