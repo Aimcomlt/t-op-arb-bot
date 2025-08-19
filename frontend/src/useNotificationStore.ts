@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type Notification = {
   id: number;
-  type: 'warning' | 'error';
+  type: 'warning' | 'error' | 'success';
   message: string;
 };
 
