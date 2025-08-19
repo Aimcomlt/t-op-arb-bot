@@ -69,6 +69,23 @@ describe('wsServer authentication', () => {
     expect(controlSurface.getClientCount()).toBe(0);
   });
 
+  it('rejects clients with bad token', async () => {
+    startWsServer(0);
+    const port = getPort();
+
+    await expect(
+      new Promise((resolve, reject) => {
+        const ws = new WebSocket(`ws://127.0.0.1:${port}`, undefined, {
+          headers: { Authorization: 'Bearer wrong' },
+        });
+        ws.on('open', resolve);
+        ws.on('error', reject);
+      })
+    ).rejects.toThrow(/401/);
+
+    expect(controlSurface.getClientCount()).toBe(0);
+  });
+
   it('accepts clients with Authorization header', async () => {
     startWsServer(0);
     const port = getPort();
@@ -76,6 +93,7 @@ describe('wsServer authentication', () => {
       headers: { Authorization: 'Bearer secret' },
     });
     await new Promise((r) => ws.on('open', r));
+    expect(controlSurface.getClientCount()).toBe(1);
     ws.close();
   });
 
@@ -86,6 +104,7 @@ describe('wsServer authentication', () => {
       headers: { 'Sec-WebSocket-Protocol': 'token:secret' },
     });
     await new Promise((r) => ws.on('open', r));
+    expect(controlSurface.getClientCount()).toBe(1);
     ws.close();
   });
 
@@ -95,6 +114,7 @@ describe('wsServer authentication', () => {
     const port = getPort();
     const ws = new WebSocket(`ws://127.0.0.1:${port}?token=secret`);
     await new Promise((r) => ws.on('open', r));
+    expect(controlSurface.getClientCount()).toBe(1);
     ws.close();
   });
 
@@ -108,6 +128,7 @@ describe('wsServer authentication', () => {
         ws.on('error', reject);
       })
     ).rejects.toThrow(/401/);
+    expect(controlSurface.getClientCount()).toBe(0);
   });
 
   it('enforces FRONTEND_ORIGINS allow-list', async () => {
@@ -123,6 +144,7 @@ describe('wsServer authentication', () => {
         ws.on('error', reject);
       })
     ).rejects.toThrow(/403/);
+    expect(controlSurface.getClientCount()).toBe(0);
   });
 });
 
