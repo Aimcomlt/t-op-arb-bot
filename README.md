@@ -29,19 +29,22 @@ It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans
 ## ⚙️ Project Structure
 
 ```plaintext
-/src
-  ├── abie/                    # ABIE Broadcast Layer (WebSocket, command router)
-  ├── core/                    # Core logic (strategy builder, scanner, simulator)
-  ├── hooks/                   # Post-sync and post-trade orchestration
-  ├── tracing/                 # SyncTrace builders and transaction decoders
-  ├── abi-cache/               # Preloaded router + pair ABIs (Uniswap/Sushiswap)
-  ├── types/                   # Shared TypeScript interfaces
-  ├── utils/                   # Generic tools (slippage calc, profit guard, etc.)
-  └── config/                  # Slippage, gas, and execution parameters
+/backend/src
+  ├── server/                  # WebSocket + HTTP API servers
+  ├── core/                    # Core runtime logic (sync listener, stores, resilience)
+  ├── dex/                     # DEX integrations and token metadata
+  ├── monitoring/              # Prometheus metrics + observability wiring
+  ├── abi-cache/               # Preloaded Uniswap/Sushiswap ABIs
+  ├── config/                  # Environment + execution guard configuration
+  ├── bootstrap/               # Startup initialization (pair loading)
+  ├── utils/                   # Shared backend utilities
+  └── types/                   # Backend type declarations
 
-/frontend
-  ├── src/hooks/useABIE.ts     # Frontend WebSocket listener hook
-  ├── src/store/abieSlice.ts   # Redux slice for real-time strategy/event updates
+/frontend/src
+  ├── hooks/useWebSocket.ts    # Frontend WebSocket client hook
+  ├── state/wsStore.ts         # WebSocket connection state store
+  ├── useArbStore.ts           # Arbitrage data store
+  └── components/              # Dashboard UI components
 ```
 
 ## 🔧 Local Fork Simulation
@@ -73,7 +76,7 @@ It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans
 | --- | ----------- | ------- |
 | `WS_AUTH_TOKEN` | Shared secret for WebSocket auth; send via subprotocol or `Authorization` header. | – |
 | `FRONTEND_ORIGINS` | Comma-separated list of allowed `Origin` values for WebSocket upgrades. | (allow all) |
-| `WS_PORT` | Port for the backend WebSocket server. | `8081` |
+| `WS_PORT` | Port for the backend WebSocket server. | `8080` |
 | `RPC_HTTP_URL` | HTTP endpoint for the target chain. | – |
 | `RPC_WSS_URL` | WebSocket endpoint for the target chain. | – |
 
@@ -83,10 +86,10 @@ It now includes a Solidity `ArbExecutor` contract leveraging Aave V3 flash loans
 
 ```bash
 # Using subprotocol
-npx wscat -c ws://localhost:8081 -o http://localhost:5173 -s "token:MY_TOKEN"
+npx wscat -c ws://localhost:8080 -o http://localhost:5173 -s "token:MY_TOKEN"
 
 # Using Authorization header
-npx wscat -c ws://localhost:8081 -o http://localhost:5173 -H "Authorization: Bearer MY_TOKEN"
+npx wscat -c ws://localhost:8080 -o http://localhost:5173 -H "Authorization: Bearer MY_TOKEN"
 ```
 
 ### Troubleshooting
