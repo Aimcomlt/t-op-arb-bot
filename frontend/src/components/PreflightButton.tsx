@@ -41,7 +41,7 @@ export default function PreflightButton() {
       console.info('[Preflight] GET /ws-auth-check', { token: maskToken(token) });
       const res = await fetch(`/ws-auth-check?token=${encodeURIComponent(token)}`);
       if (res.ok) {
-        addNotification({ type: 'success', message: 'ws auth ok' });
+        addNotification({ type: 'success', message: 'WS auth OK' });
       } else if (res.status === 401 || res.status === 403) {
         let err = '';
         try { err = (await res.json()).error; } catch {}

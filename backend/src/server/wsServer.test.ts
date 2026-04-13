@@ -162,6 +162,14 @@ describe('wsServer heartbeat', () => {
     await new Promise((r) => ws.on('close', r));
 
     expect(controlSurface.getClientCount()).toBe(0);
+    const gaugeAfterClose = await controlSurface.getWsClientsActiveGaugeValue();
+    expect(gaugeAfterClose).toBeGreaterThanOrEqual(0);
+    expect(gaugeAfterClose).toBe(0);
+
+    await new Promise((r) => setTimeout(r, 75));
+    const gaugeAfterExtraHeartbeat = await controlSurface.getWsClientsActiveGaugeValue();
+    expect(gaugeAfterExtraHeartbeat).toBeGreaterThanOrEqual(0);
+    expect(gaugeAfterExtraHeartbeat).toBe(0);
   });
 });
 
@@ -195,4 +203,3 @@ describe('wsServer backpressure', () => {
     ws.close();
   });
 });
-

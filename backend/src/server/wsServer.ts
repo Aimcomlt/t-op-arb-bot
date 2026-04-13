@@ -137,8 +137,9 @@ export function startWsServer(port = env.WS_PORT, o: WsServerOptions = {}) {
     for (const [ws, state] of clients) {
       if (!state.isAlive) {
         try { ws.terminate(); } catch {}
-        clients.delete(ws);
-        wsClientsActiveGauge.dec();
+        if (clients.delete(ws)) {
+          wsClientsActiveGauge.dec();
+        }
         continue;
       }
       state.isAlive = false;
@@ -167,8 +168,9 @@ function handleConnection(ws: WSClient) {
   });
 
   ws.on('close', () => {
-    clients.delete(ws);
-    wsClientsActiveGauge.dec();
+    if (clients.delete(ws)) {
+      wsClientsActiveGauge.dec();
+    }
     wsQueueDepthGauge.set(totalQueueDepth());
   });
 
@@ -301,4 +303,8 @@ export const controlSurface = {
   upsertSnapshot,
   broadcastUpdate,
   getClientCount: () => clients.size,
+  getWsClientsActiveGaugeValue: async () => {
+    const metric = await wsClientsActiveGauge.get();
+    return metric.values[0]?.value ?? 0;
+  },
 };
